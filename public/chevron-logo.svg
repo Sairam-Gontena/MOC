@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 245" role="img" aria-labelledby="title">
+  <title id="title">Chevron logo</title>
+  <rect width="260" height="245" fill="#ffffff"/>
+  <text x="130" y="42" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="46" font-weight="700" fill="#0066a4">Chevron</text>
+  <polygon points="35,62 130,92 225,62 225,124 130,154 35,124" fill="#008bd2"/>
+  <polygon points="35,62 130,92 130,154 35,124" fill="#0078be"/>
+  <polygon points="225,62 130,92 130,154 225,124" fill="#00a3e0"/>
+  <polygon points="35,78 130,108 225,78 225,94 130,124 35,94" fill="#23a9e1" opacity="0.5"/>
+  <polygon points="35,142 130,172 225,142 225,205 130,236 35,205" fill="#c70039"/>
+  <polygon points="35,142 130,172 130,236 35,205" fill="#b50933"/>
+  <polygon points="225,142 130,172 130,236 225,205" fill="#d20a3b"/>
+  <polygon points="35,142 130,172 225,142 225,158 130,188 35,158" fill="#e14b61" opacity="0.35"/>
+  <polygon points="35,124 130,154 225,124 225,142 130,172 35,142" fill="#ffffff"/>
+</svg>

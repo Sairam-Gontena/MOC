@@ -1,0 +1,568 @@
+<ng-container *ngIf="view === 'login'">
+  <main class="login-page">
+    <section class="login-hero">
+      <img src="chevron-logo.svg" alt="Chevron" class="login-logo" />
+      <p class="eyebrow">Management of Change Prototype</p>
+      <h1>Role-based MOC workflow demo</h1>
+      <p>
+        Demonstrates initiation, evaluation, action routing, manager approval, implementation, PSSR, and closure using dummy data only.
+      </p>
+      <div class="login-highlights">
+        <span *ngFor="let item of loginHighlights">{{ item }}</span>
+      </div>
+    </section>
+
+    <section class="login-card">
+      <p class="eyebrow">Demo Login</p>
+      <h2>Continue as a workflow user</h2>
+      <p class="login-copy">Each login shows the MOCs and actions routed to that user. Any user can initiate a new MOC.</p>
+
+      <label>
+        Demo user
+        <select [(ngModel)]="selectedUserId">
+          <option *ngFor="let demoUser of users" [value]="demoUser.id">
+            {{ demoUser.name }} - {{ demoUser.role }}{{ demoUser.discipline ? ' / ' + demoUser.discipline : '' }}
+          </option>
+        </select>
+      </label>
+
+      <button type="button" class="primary full-button" (click)="login()">Login</button>
+
+      <div class="quick-logins">
+        <button type="button" *ngFor="let demoUser of users" (click)="quickLogin(demoUser)">
+          <strong>{{ demoUser.name }}</strong>
+          <span>{{ demoUser.role }}{{ demoUser.discipline ? ' / ' + demoUser.discipline : '' }}</span>
+        </button>
+      </div>
+    </section>
+  </main>
+</ng-container>
+
+<ng-container *ngIf="view !== 'login' && currentUser">
+  <header class="app-header">
+    <div class="brand-block">
+      <img src="chevron-logo.svg" alt="Chevron" class="company-logo" />
+      <div>
+        <h1>Management of Change (MOC)</h1>
+        <p>Angular prototype with RBAC-filtered MOC visibility.</p>
+      </div>
+    </div>
+    <div class="user-pill">
+      <span>{{ currentRoleLabel }}</span>
+      <strong>{{ currentUser.name }}</strong>
+      <button type="button" class="logout" (click)="logout()">Logout</button>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <nav class="sidebar" aria-label="Prototype navigation">
+      <button type="button" [class.active]="view === 'dashboard'" (click)="openDashboard()">Dashboard</button>
+      <button type="button" [class.active]="view === 'dashboard'" (click)="openDashboard()">My MOCs</button>
+          <button type="button" [disabled]="!canInitiate()" [class.active]="view === 'create'" (click)="openCreate()">+ Create New MOC</button>
+      <button type="button" *ngIf="currentUser.role === 'Admin'" [class.active]="view === 'admin'" (click)="openAdmin()">Checklist Admin</button>
+      <button type="button" class="muted-button">Help</button>
+    </nav>
+
+    <section class="workspace">
+      <ng-container *ngIf="view === 'dashboard'">
+        <div class="page-title">
+          <div>
+            <h2>{{ currentUser.role === 'Admin' ? 'All MOCs' : 'My MOCs' }}</h2>
+            <p>{{ currentRoleLabel }} visibility. Any user can initiate; routed work appears by assignment.</p>
+          </div>
+          <button type="button" class="primary" *ngIf="canInitiate()" (click)="openCreate()">+ Create New MOC</button>
+        </div>
+
+        <div class="rbac-note">
+          <strong>RBAC rule:</strong>
+          <span *ngIf="currentUser.role === 'Owner'">Owners see only MOCs they initiated.</span>
+          <span *ngIf="currentUser.role === 'Evaluator'">Evaluators see only MOCs assigned to their evaluation discipline.</span>
+          <span *ngIf="currentUser.role === 'Manager'">Managers see only MOCs awaiting their approval.</span>
+          <span *ngIf="currentUser.role === 'Admin'">Admins see all MOCs.</span>
+        </div>
+
+        <div class="summary-grid">
+          <article>
+            <span>Visible MOCs</span>
+            <strong>{{ totalMocs }}</strong>
+          </article>
+          <article>
+            <span>Pending Review</span>
+            <strong>{{ pendingReview }}</strong>
+          </article>
+          <article>
+            <span>Waiting on Others</span>
+            <strong>{{ waitingOnOthers }}</strong>
+          </article>
+          <article>
+            <span>Closed</span>
+            <strong>{{ closedMocs }}</strong>
+          </article>
+        </div>
+
+        <section class="panel">
+          <div class="section-head">
+            <h3>MOC List - Role Visibility</h3>
+            <button type="button" class="secondary danger" (click)="resetDummyData()">Reset Dummy Data</button>
+          </div>
+
+          <div class="empty-state" *ngIf="visibleRecords.length === 0">
+            <strong>No MOCs are visible for this role.</strong>
+            <p>Switch roles or create a new MOC as an Owner.</p>
+            <button type="button" class="primary" *ngIf="canInitiate()" (click)="openCreate()">+ Create New MOC</button>
+          </div>
+
+          <div class="table-wrap" *ngIf="visibleRecords.length > 0">
+            <table>
+              <thead>
+                <tr>
+                  <th>MOC ID</th>
+                  <th>MOC Title</th>
+                  <th>Workflow Step</th>
+                  <th>Status</th>
+                  <th>Owner</th>
+                  <th>Waiting On</th>
+                  <th>Current Assigned To</th>
+                  <th>Action Flag</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let record of visibleRecords" (click)="openDetail(record)" tabindex="0">
+                  <td>{{ record.id }}</td>
+                  <td>{{ record.title }}</td>
+                  <td><span class="status">{{ record.workflowState }}</span></td>
+                  <td>{{ record.status }}</td>
+                  <td>{{ userName(record.ownerId) }}</td>
+                  <td>{{ waitingOnFor(record) }}</td>
+                  <td>{{ currentAssignedTo(record) }}</td>
+                  <td>{{ record.actionFlag || '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </ng-container>
+
+      <ng-container *ngIf="view === 'create'">
+        <div class="page-title">
+          <div>
+            <h2>Initiate New MOC</h2>
+            <p>Any demo user can initiate. The initiator becomes the MOC Owner for routing and closure.</p>
+          </div>
+        </div>
+
+        <form class="panel form-panel" (ngSubmit)="submitMoc()" novalidate>
+          <label>
+            Title <span>*</span>
+            <input name="title" [(ngModel)]="form.title" placeholder="Example: Replace gasket on Pump P-101" />
+            <small class="error" *ngIf="showError('title')">Title is required.</small>
+          </label>
+
+          <label>
+            Description <span>*</span>
+            <textarea name="description" [(ngModel)]="form.description" placeholder="Describe the proposed change" rows="4"></textarea>
+            <small class="error" *ngIf="showError('description')">Description is required.</small>
+          </label>
+
+          <label>
+            Basis / Justification <span>*</span>
+            <textarea name="basis" [(ngModel)]="form.basis" placeholder="Explain the business or safety reason for the change" rows="4"></textarea>
+            <small class="error" *ngIf="showError('basis')">Basis / Justification is required.</small>
+          </label>
+
+          <div class="field-block">
+            <label class="group-label">Disciplines Involved <span>*</span></label>
+            <div class="checkbox-dropdown">
+              <label *ngFor="let discipline of disciplineOptions" class="checkline">
+                <input
+                  type="checkbox"
+                  [checked]="isDisciplineSelected(discipline)"
+                  (change)="toggleDiscipline(discipline, $any($event.target).checked)"
+                />
+                {{ discipline }}
+              </label>
+            </div>
+            <div class="pill-row" *ngIf="form.disciplines.length > 0">
+              <span class="pill" *ngFor="let discipline of form.disciplines">{{ discipline }}</span>
+            </div>
+            <small class="error" *ngIf="showError('disciplines')">At least one discipline is required.</small>
+          </div>
+
+          <label>
+            Supporting Document <span>*</span>
+            <input type="file" name="supportingDocument" (change)="onFileSelected($event)" />
+            <strong class="file-name" *ngIf="form.supportingDocumentName">{{ form.supportingDocumentName }}</strong>
+            <small class="error" *ngIf="showError('supportingDocumentName')">Supporting document is required.</small>
+          </label>
+
+          <label>
+            Date Change Needs to be Implemented By <span>*</span>
+            <input type="date" name="implementationDate" [min]="minDate" [(ngModel)]="form.implementationDate" />
+            <small class="error" *ngIf="showError('implementationDate')">Implementation date is required.</small>
+            <small class="error" *ngIf="submitAttempted && isPastDate()">Date cannot be in the past.</small>
+          </label>
+
+          <div class="system-fields">
+            <h3>System-assigned after submit</h3>
+            <div><span>MOC ID</span><strong>Autogenerated</strong></div>
+            <div><span>MOC Owner</span><strong>{{ currentUser.name }}</strong></div>
+            <div><span>Workflow State</span><strong>Initiated -> Evaluation</strong></div>
+            <div><span>Created / Updated</span><strong>System timestamp</strong></div>
+          </div>
+
+          <footer class="form-actions">
+            <button type="button" class="secondary" (click)="cancelCreate()">Cancel</button>
+            <button type="submit" class="primary" [disabled]="isSubmitting">
+              {{ isSubmitting ? 'Submitting...' : 'Submit MOC' }}
+            </button>
+          </footer>
+        </form>
+      </ng-container>
+
+      <ng-container *ngIf="view === 'admin' && currentUser.role === 'Admin'">
+        <div class="page-title">
+          <div>
+            <h2>Checklist Configuration</h2>
+            <p>Admin-maintained checklist templates. These apply to newly created MOCs.</p>
+          </div>
+          <button type="button" class="primary" (click)="saveChecklistTemplates()">Save Checklist Templates</button>
+        </div>
+
+        <section class="panel admin-grid">
+          <label *ngFor="let discipline of disciplineOptions">
+            {{ discipline }} Evaluation Checklist
+            <textarea
+              rows="4"
+              [ngModel]="checklistText(discipline)"
+              (ngModelChange)="updateChecklistText(discipline, $event)"
+              [name]="'checklist-' + discipline"
+            ></textarea>
+          </label>
+          <label class="wide">
+            PSSR Checklist
+            <textarea rows="4" [ngModel]="pssrChecklistText()" (ngModelChange)="updatePssrChecklistText($event)" name="pssrChecklist"></textarea>
+          </label>
+        </section>
+      </ng-container>
+
+      <ng-container *ngIf="view === 'detail' && selectedMoc">
+        <div class="page-title">
+          <div>
+            <h2>{{ selectedMoc.id }} - {{ selectedMoc.title }}</h2>
+          <p>{{ currentUser.role === 'Evaluator' ? 'Assigned evaluator workbench with checklist and action item handling.' : 'MOC detail view filtered by RBAC.' }}</p>
+          </div>
+          <button type="button" class="secondary" (click)="openDashboard()">Back to Dashboard</button>
+        </div>
+
+        <div class="stepper" aria-label="Workflow progress">
+          <div class="step complete">Initiated</div>
+          <div class="step" [class.active]="selectedMoc.workflowState === 'Evaluation'">Evaluation</div>
+          <div class="step" [class.active]="selectedMoc.workflowState === 'Approval to Implement'">Approval</div>
+          <div class="step" [class.active]="selectedMoc.workflowState === 'Implementation'">Implementation</div>
+          <div class="step" [class.active]="selectedMoc.workflowState === 'PSSR'">PSSR</div>
+          <div class="step" [class.active]="selectedMoc.workflowState === 'Ready for Closure' || selectedMoc.workflowState === 'Closed'">Closure</div>
+        </div>
+
+        <section class="panel readonly-grid">
+          <div>
+            <span>Current workflow step</span>
+            <strong>{{ selectedMoc.workflowState }}</strong>
+          </div>
+          <div>
+            <span>Waiting On</span>
+            <strong>{{ waitingOnFor(selectedMoc) }}</strong>
+          </div>
+          <div class="wide route-card">
+            <span>Current Assigned To</span>
+            <strong>{{ currentAssignedTo(selectedMoc) }}</strong>
+            <p>{{ nextRouteLabel(selectedMoc) }}</p>
+          </div>
+          <div>
+            <span>MOC Owner</span>
+            <strong>{{ userName(selectedMoc.ownerId) }}</strong>
+          </div>
+          <div>
+            <span>Assigned Evaluators</span>
+            <strong>{{ evaluatorNames(selectedMoc) }}</strong>
+          </div>
+          <div class="wide">
+            <span>Description</span>
+            <strong>{{ selectedMoc.description }}</strong>
+          </div>
+          <div class="wide">
+            <span>Basis / Justification</span>
+            <strong>{{ selectedMoc.basis }}</strong>
+          </div>
+          <div>
+            <span>Disciplines</span>
+            <strong>{{ selectedMoc.disciplines.join(', ') }}</strong>
+          </div>
+          <div>
+            <span>Supporting Document</span>
+            <strong>{{ selectedMoc.supportingDocumentName }}</strong>
+          </div>
+          <div>
+            <span>Implementation Date</span>
+            <strong>{{ selectedMoc.implementationDate }}</strong>
+          </div>
+          <div>
+            <span>Created Date</span>
+            <strong>{{ selectedMoc.createdDate | date: 'medium' }}</strong>
+          </div>
+          <div *ngIf="selectedMoc.closureDate">
+            <span>Closure Date</span>
+            <strong>{{ selectedMoc.closureDate | date: 'medium' }}</strong>
+          </div>
+          <div *ngIf="selectedMoc.closedByUserId">
+            <span>Closed By</span>
+            <strong>{{ userName(selectedMoc.closedByUserId) }}</strong>
+          </div>
+        </section>
+
+        <section class="panel work-panel" *ngIf="canShowWorkflowActions(selectedMoc)">
+          <div class="section-head">
+            <div>
+              <h3>Routing Tracker</h3>
+              <p>Shows who touched the MOC and who it was routed to at each handoff.</p>
+            </div>
+          </div>
+
+          <ol class="timeline">
+            <li *ngFor="let event of selectedMoc.workflowHistory">
+              <div>
+                <strong>{{ event.step }}</strong>
+                <span>{{ event.at | date: 'medium' }}</span>
+              </div>
+              <p>{{ event.note }}</p>
+              <small>
+                By {{ userName(event.byUserId) }} ->
+                Assigned to {{ event.assignedToUserIds.length ? userList(event.assignedToUserIds) : 'No active assignee' }}
+              </small>
+            </li>
+          </ol>
+        </section>
+
+        <section class="panel work-panel">
+          <div class="section-head">
+            <div>
+              <h3>Workflow Actions</h3>
+              <p>Available actions change by role and current workflow state.</p>
+            </div>
+            <span class="status">{{ selectedMoc.workflowState }}</span>
+          </div>
+
+          <div class="workflow-actions">
+            <button type="button" class="primary" *ngIf="canSubmitForApproval(selectedMoc)" (click)="submitForApproval(selectedMoc)">
+              Submit for Approval
+            </button>
+            <button type="button" class="primary" *ngIf="canApproveToImplement(selectedMoc)" (click)="approveToImplement(selectedMoc)">
+              Approve to Implement
+            </button>
+            <button type="button" class="primary" *ngIf="canMarkImplemented(selectedMoc)" (click)="markImplemented(selectedMoc)">
+              Mark Implementation Complete
+            </button>
+            <button type="button" class="primary" *ngIf="canCompletePssr(selectedMoc)" (click)="completePssr(selectedMoc)">
+              Complete PSSR
+            </button>
+            <button type="button" class="primary" *ngIf="canClose(selectedMoc)" (click)="closeMoc(selectedMoc)">Close MOC</button>
+          </div>
+
+        </section>
+
+        <section class="panel work-panel" *ngIf="evaluatorTask(selectedMoc) as task">
+          <div class="section-head">
+            <div>
+              <h3>{{ task.discipline }} Evaluation</h3>
+              <p>Assigned to {{ userName(task.evaluatorId) }}. Complete all required checklist items before marking evaluation complete.</p>
+            </div>
+            <span class="status" [class.done]="task.complete">{{ task.complete ? 'Complete' : 'Pending' }}</span>
+          </div>
+
+          <div class="checklist">
+            <label class="eval-check" *ngFor="let item of task.checklist">
+              <input
+                type="checkbox"
+                [checked]="item.complete"
+                [disabled]="!canEvaluate(selectedMoc) || task.complete"
+                (change)="toggleChecklist(item, $any($event.target).checked)"
+              />
+              <span>{{ item.text }}</span>
+              <em>{{ item.required ? 'Required' : 'Optional' }}</em>
+            </label>
+          </div>
+
+          <div class="action-required" *ngIf="canEvaluate(selectedMoc)">
+            <strong>Are evaluation action items required?</strong>
+            <label class="radio-line">
+              <input type="radio" name="actionRequired" [checked]="task.actionRequired === false" (change)="setActionRequired(task, false)" />
+              No action items required
+            </label>
+            <label class="radio-line">
+              <input type="radio" name="actionRequired" [checked]="task.actionRequired === true" (change)="setActionRequired(task, true)" />
+              Action item required
+            </label>
+          </div>
+
+          <form class="action-form nested-action-form" *ngIf="canEvaluate(selectedMoc) && task.actionRequired" (ngSubmit)="createActionItem(selectedMoc)">
+            <label>
+              Phase
+              <select name="phase" [(ngModel)]="newAction.phase">
+                <option value="Evaluation">Evaluation</option>
+                <option value="Pre-Startup">Pre-Startup</option>
+                <option value="Post-Startup">Post-Startup</option>
+              </select>
+            </label>
+            <label>
+              Assign To
+              <select name="assigneeId" [(ngModel)]="newAction.assigneeId">
+                <option *ngFor="let demoUser of users" [value]="demoUser.id">{{ demoUser.name }} - {{ demoUser.role }}</option>
+              </select>
+            </label>
+            <label class="wide">
+              Description
+              <input name="description" [(ngModel)]="newAction.description" placeholder="Describe the required follow-up" />
+            </label>
+            <label>
+              Due Date
+              <input type="date" name="dueDate" [(ngModel)]="newAction.dueDate" />
+            </label>
+            <button type="submit" class="secondary">Create Action Item</button>
+          </form>
+
+          <button
+            type="button"
+            class="primary"
+            *ngIf="canEvaluate(selectedMoc)"
+            [disabled]="!canCompleteEvaluation(task)"
+            (click)="completeEvaluation(selectedMoc, task)"
+          >
+            Mark Evaluation Complete
+          </button>
+
+          <p class="readonly-message" *ngIf="currentUser.role === 'Evaluator' && selectedMoc.workflowState !== 'Evaluation'">
+            This MOC is no longer in Evaluation. Checklist work is read-only.
+          </p>
+        </section>
+
+        <section class="panel work-panel" *ngIf="selectedMoc.workflowState === 'PSSR'">
+          <div class="section-head">
+            <div>
+              <h3>PSSR Checklist</h3>
+              <p>Operations completes required PSSR checks before the MOC becomes ready for closure.</p>
+            </div>
+            <span class="status" [class.done]="pssrComplete(selectedMoc)">
+              {{ pssrComplete(selectedMoc) ? 'Complete' : 'Pending' }}
+            </span>
+          </div>
+
+          <div class="checklist">
+            <label class="eval-check" *ngFor="let item of selectedMoc.pssrChecklist">
+              <input
+                type="checkbox"
+                [checked]="item.complete"
+                [disabled]="selectedMoc.workflowState !== 'PSSR' || (currentUser.discipline !== 'Operations' && currentUser.role !== 'Admin')"
+                (change)="togglePssrChecklist(item, $any($event.target).checked)"
+              />
+              <span>{{ item.text }}</span>
+              <em>{{ item.required ? 'Required' : 'Optional' }}</em>
+            </label>
+          </div>
+        </section>
+
+        <section class="panel work-panel">
+          <div class="section-head">
+            <div>
+              <h3>Action Items</h3>
+              <p>Create evaluation, pre-startup, or post-startup actions as needed to demonstrate workflow progression.</p>
+            </div>
+          </div>
+
+          <div class="table-wrap" *ngIf="selectedMoc.actionItems.length > 0">
+            <table>
+              <thead>
+                <tr>
+                  <th>Phase</th>
+                  <th>Description</th>
+                  <th>Assigned To</th>
+                  <th>Due Date</th>
+                  <th>Status</th>
+                  <th>Evaluator Review</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of selectedMoc.actionItems">
+                  <td>{{ item.phase }}</td>
+                  <td>{{ item.description }}</td>
+                  <td>{{ userName(item.assigneeId) }}</td>
+                  <td>{{ item.dueDate }}</td>
+                  <td>{{ item.complete ? 'Complete' : 'Open' }}</td>
+                  <td>{{ item.reviewedByEvaluator ? 'Reviewed' : item.complete ? 'Needs evaluator review' : '-' }}</td>
+                  <td>
+                    <input
+                      *ngIf="canCompleteAction(selectedMoc, item)"
+                      [(ngModel)]="actionComments[item.id]"
+                      [name]="'comment-' + item.id"
+                      placeholder="Completion comment"
+                    />
+                    <input
+                      *ngIf="canCompleteAction(selectedMoc, item)"
+                      type="file"
+                      [name]="'evidence-' + item.id"
+                      (change)="onEvidenceSelected($event, item)"
+                    />
+                    <button
+                      type="button"
+                      class="secondary"
+                      *ngIf="canCompleteAction(selectedMoc, item)"
+                      [disabled]="!canSubmitActionCompletion(selectedMoc, item)"
+                      (click)="completeAction(selectedMoc, item)"
+                    >
+                      Complete
+                    </button>
+                    <button type="button" class="secondary" *ngIf="canReviewAction(item)" (click)="reviewAction(selectedMoc, item)">
+                      Review Action
+                    </button>
+                    <span *ngIf="item.evidenceFileName">Evidence: {{ item.evidenceFileName }}</span>
+                    <span *ngIf="item.complete">{{ item.comments || 'Done' }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="empty-state compact" *ngIf="selectedMoc.actionItems.length === 0">
+            <strong>No action items yet.</strong>
+            <p>Evaluator can create one during Evaluation if follow-up is needed.</p>
+          </div>
+
+          <form class="action-form" *ngIf="canCreatePostStartupAction(selectedMoc)" (ngSubmit)="createActionItem(selectedMoc)">
+            <label>
+              Phase
+              <select name="phase" [(ngModel)]="newAction.phase">
+                <option value="Evaluation">Evaluation</option>
+                <option value="Pre-Startup">Pre-Startup</option>
+                <option value="Post-Startup">Post-Startup</option>
+              </select>
+            </label>
+            <label>
+              Assign To
+              <select name="assigneeId" [(ngModel)]="newAction.assigneeId">
+                <option *ngFor="let demoUser of users" [value]="demoUser.id">{{ demoUser.name }} - {{ demoUser.role }}</option>
+              </select>
+            </label>
+            <label class="wide">
+              Description
+              <input name="description" [(ngModel)]="newAction.description" placeholder="Describe the required follow-up" />
+            </label>
+            <label>
+              Due Date
+              <input type="date" name="dueDate" [(ngModel)]="newAction.dueDate" />
+            </label>
+            <button type="submit" class="primary">Create Action Item</button>
+          </form>
+        </section>
+      </ng-container>
+    </section>
+  </main>
+</ng-container>
