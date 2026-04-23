@@ -1,11 +1,21 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, ElementRef, HostListener, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-type View = 'login' | 'dashboard' | 'create' | 'detail' | 'admin';
+type View = 'login' | 'dashboard' | 'detail' | 'admin' | 'actions';
 type UserRole = 'Owner' | 'Evaluator' | 'Manager' | 'Admin';
-type WorkflowState = 'Evaluation' | 'Approval to Implement' | 'Implementation' | 'PSSR' | 'Ready for Closure' | 'Closed';
+type WorkflowState =
+  | 'Evaluation'
+  | 'Approval to Implement'
+  | 'Implementation'
+  | 'PSSR'
+  | 'Approval for Start Up'
+  | 'Ready for Closure'
+  | 'Closed'
+  | 'Cancelled';
 type ActionPhase = 'Evaluation' | 'Pre-Startup' | 'Post-Startup';
+type GateType = 'Implement' | 'Start Up';
+type GateDecision = 'Submitted' | 'Approved' | 'Rejected' | 'Cancelled';
 
 interface DemoUser {
   id: string;
@@ -14,45 +24,20 @@ interface DemoUser {
   discipline?: string;
 }
 
-interface MocRecord {
-  id: string;
-  description: string;
-  title: string;
-  basis: string;
-  disciplines: string[];
-  supportingDocumentName: string;
-  implementationDate: string;
-  ownerId: string;
-  evaluatorIds: string[];
-  managerId: string;
-  evaluations: EvaluationTask[];
-  pssrChecklist: ChecklistItem[];
-  actionItems: ActionItem[];
-  workflowState: WorkflowState;
-  status: 'Open' | 'Closed';
-  waitingOn: string;
-  workflowHistory: WorkflowEvent[];
-  actionFlag: '' | 'Owner' | 'Evaluator' | 'Action Owner' | 'Complete';
-  createdDate: string;
-  lastUpdatedDate: string;
-  closureDate?: string;
-  closedByUserId?: string;
-}
-
-interface WorkflowEvent {
-  id: string;
-  at: string;
-  step: WorkflowState | 'Initiated';
-  byUserId: string;
-  assignedToUserIds: string[];
-  note: string;
-}
-
 interface ChecklistItem {
   id: string;
   text: string;
   required: boolean;
   complete: boolean;
+  completedByUserId?: string;
+  completedAt?: string;
+}
+
+interface ChecklistTemplateItem {
+  id: string;
+  text: string;
+  required: boolean;
+  active: boolean;
 }
 
 interface EvaluationTask {
@@ -73,8 +58,59 @@ interface ActionItem {
   complete: boolean;
   reviewedByEvaluator: boolean;
   createdBy: string;
+  sourceDiscipline?: string;
   comments?: string;
   evidenceFileName?: string;
+  evidenceDataUrl?: string;
+  evidenceMimeType?: string;
+  completedByUserId?: string;
+  completedAt?: string;
+}
+
+interface WorkflowEvent {
+  id: string;
+  at: string;
+  step: WorkflowState | 'Initiated';
+  byUserId: string;
+  assignedToUserIds: string[];
+  note: string;
+}
+
+interface ApprovalEvent {
+  id: string;
+  gate: GateType;
+  decision: GateDecision;
+  byUserId: string;
+  at: string;
+  comments?: string;
+}
+
+interface MocRecord {
+  id: string;
+  title: string;
+  description: string;
+  basis: string;
+  disciplines: string[];
+  supportingDocumentName: string;
+  supportingDocumentDataUrl?: string;
+  supportingDocumentMimeType?: string;
+  implementationDate: string;
+  ownerId: string;
+  evaluatorIds: string[];
+  managerId: string;
+  evaluations: EvaluationTask[];
+  pssrChecklist: ChecklistItem[];
+  actionItems: ActionItem[];
+  approvalHistory: ApprovalEvent[];
+  workflowState: WorkflowState;
+  status: 'Open' | 'Closed' | 'Cancelled';
+  waitingOn: string;
+  workflowHistory: WorkflowEvent[];
+  actionFlag: '' | 'Owner' | 'Evaluator' | 'Action Owner' | 'Manager' | 'Operations' | 'Complete';
+  createdDate: string;
+  lastUpdatedDate: string;
+  closureDate?: string;
+  closedByUserId?: string;
 }
 
 interface InitiationForm {
@@ -83,12 +119,25 @@ interface InitiationForm {
   basis: string;
   disciplines: string[];
   supportingDocumentName: string;
+  supportingDocumentDataUrl?: string;
+  supportingDocumentMimeType?: string;
   implementationDate: string;
 }
 
 interface ChecklistTemplates {
-  evaluation: Record<string, string[]>;
-  pssr: string[];
+  evaluation: Record<string, ChecklistTemplateItem[]>;
+  pssr: ChecklistTemplateItem[];
+}
+
+interface ActionBoardRow {
+  record: MocRecord;
+  item: ActionItem;
+}
+
+interface FileAttachment {
+  name: string;
+  dataUrl: string;
+  mimeType?: string;
 }
 
 @Component({
@@ -98,30 +147,38 @@ interface ChecklistTemplates {
   styleUrl: './app.css',
 })
 export class App {
-  readonly storageKey = 'mocAngularRbacPrototype.v6';
-  readonly checklistKey = 'mocAngularChecklistTemplates.v1';
+  readonly storageKey = 'mocAngularRbacPrototype.v7';
+  readonly checklistKey = 'mocAngularChecklistTemplates.v2';
   readonly sessionKey = 'mocAngularRbacSession.v1';
-  readonly disciplineOptions = ['Mechanical', 'Process', 'Electrical', 'Operations', 'HSE', 'Instrumentation'];
+  readonly disciplineOptions = ['Mechanical', 'Process', 'Electrical', 'Operations', 'HSE', 'Instrumentation', 'Environmental'];
+  readonly workflowSteps: Array<{ key: WorkflowState | 'Initiated'; label: string }> = [
+    { key: 'Initiated', label: 'Initiated' },
+    { key: 'Evaluation', label: 'Evaluation' },
+    { key: 'Approval to Implement', label: 'Approval to Implement' },
+    { key: 'Implementation', label: 'Implementation' },
+    { key: 'PSSR', label: 'PSSR' },
+    { key: 'Approval for Start Up', label: 'Approval for Start Up' },
+    { key: 'Ready for Closure', label: 'Ready for Closure' },
+    { key: 'Closed', label: 'Closed' },
+  ];
   readonly users: DemoUser[] = [
-    { id: 'owner1', name: 'Olivia Owner', role: 'Owner' },
-    { id: 'owner2', name: 'Owen Owner', role: 'Owner' },
-    { id: 'mech1', name: 'Mike Mechanical', role: 'Evaluator', discipline: 'Mechanical' },
-    { id: 'process1', name: 'Priya Process', role: 'Evaluator', discipline: 'Process' },
-    { id: 'env1', name: 'Evan Environmental', role: 'Evaluator', discipline: 'Environmental' },
-    { id: 'hse1', name: 'Harper HSE', role: 'Evaluator', discipline: 'HSE' },
-    { id: 'ops1', name: 'Oscar Operations', role: 'Evaluator', discipline: 'Operations' },
-    { id: 'manager1', name: 'Morgan Manager', role: 'Manager' },
-    { id: 'admin1', name: 'Ada Admin', role: 'Admin' },
+    { id: 'owner1', name: 'Olivia', role: 'Owner' },
+    { id: 'owner2', name: 'Owen', role: 'Owner' },
+    { id: 'mech1', name: 'Mike', role: 'Evaluator', discipline: 'Mechanical' },
+    { id: 'process1', name: 'Priya', role: 'Evaluator', discipline: 'Process' },
+    { id: 'env1', name: 'Evan', role: 'Evaluator', discipline: 'Environmental' },
+    { id: 'hse1', name: 'Harper', role: 'Evaluator', discipline: 'HSE' },
+    { id: 'ops1', name: 'Oscar', role: 'Evaluator', discipline: 'Operations' },
+    { id: 'manager1', name: 'Morgan', role: 'Manager' },
+    { id: 'admin1', name: 'Ada', role: 'Admin' },
   ];
-  readonly loginHighlights = [
-    'Initiate MOC from any role',
-    'Evaluate discipline checklist',
-    'Route action items back for evaluator review',
-    'Track owner, manager, PSSR, and closure handoffs',
-  ];
+  readonly demoPassword = 'demo123';
 
   view: View = 'login';
-  selectedUserId = 'owner1';
+  loginUsername = '';
+  loginPassword = '';
+  loginError = '';
+  showCreateModal = false;
   currentUser: DemoUser | null = this.loadSession();
   selectedMoc: MocRecord | null = null;
   submitAttempted = false;
@@ -129,15 +186,24 @@ export class App {
   form: InitiationForm = this.blankForm();
   newAction: Pick<ActionItem, 'phase' | 'description' | 'assigneeId' | 'dueDate'> = this.blankAction();
   actionComments: Record<string, string> = {};
-  actionEvidence: Record<string, string> = {};
+  actionEvidence: Record<string, FileAttachment | undefined> = {};
   checklistTemplates: ChecklistTemplates = this.loadChecklistTemplates();
   records: MocRecord[] = this.loadRecords();
+  implementRejectionComment = '';
+  startupRejectionComment = '';
+  cancelComment = '';
+  reworkNotice = '';
+  private lastFocusedElement: HTMLElement | null = null;
+  @ViewChild('createModalCard') createModalCard?: ElementRef<HTMLElement>;
 
   constructor() {
     if (this.currentUser) {
-      this.selectedUserId = this.currentUser.id;
       this.view = 'dashboard';
     }
+  }
+
+  get loginNames(): string[] {
+    return this.users.map((user) => user.name);
   }
 
   get visibleRecords(): MocRecord[] {
@@ -153,8 +219,36 @@ export class App {
       );
     }
     return this.records.filter(
-      (record) => record.managerId === this.currentUser?.id && record.workflowState === 'Approval to Implement',
+      (record) =>
+        record.managerId === this.currentUser?.id &&
+        record.waitingOn === 'Manager' &&
+        (record.workflowState === 'Approval to Implement' || record.workflowState === 'Approval for Start Up'),
     );
+  }
+
+  get myActionItems(): ActionBoardRow[] {
+    if (!this.currentUser) return [];
+    const rows: ActionBoardRow[] = [];
+    for (const record of this.records) {
+      for (const item of record.actionItems) {
+        const canSee = this.currentUser.role === 'Admin' || item.assigneeId === this.currentUser.id;
+        if (canSee) rows.push({ record, item });
+      }
+    }
+    return rows.sort((a, b) => {
+      if (a.item.complete !== b.item.complete) return a.item.complete ? 1 : -1;
+      return a.item.dueDate.localeCompare(b.item.dueDate);
+    });
+  }
+
+  get routedUpdates(): Array<{ record: MocRecord; event: WorkflowEvent }> {
+    if (!this.currentUser) return [];
+    const updates = this.visibleRecords.flatMap((record) =>
+      record.workflowHistory
+        .filter((event) => event.assignedToUserIds.includes(this.currentUser!.id) && event.byUserId !== this.currentUser!.id)
+        .map((event) => ({ record, event })),
+    );
+    return updates.sort((a, b) => b.event.at.localeCompare(a.event.at)).slice(0, 6);
   }
 
   get totalMocs(): number {
@@ -162,11 +256,11 @@ export class App {
   }
 
   get pendingReview(): number {
-    return this.visibleRecords.filter((record) => record.workflowState !== 'Closed').length;
+    return this.visibleRecords.filter((record) => record.status === 'Open').length;
   }
 
   get waitingOnOthers(): number {
-    return this.visibleRecords.filter((record) => record.waitingOn !== '-' && record.status !== 'Closed').length;
+    return this.visibleRecords.filter((record) => record.waitingOn !== '-' && record.status === 'Open').length;
   }
 
   get closedMocs(): number {
@@ -181,21 +275,45 @@ export class App {
     return this.currentUser ? `${this.currentUser.role}${this.currentUser.discipline ? ` - ${this.currentUser.discipline}` : ''}` : 'Not signed in';
   }
 
-  login(): void {
-    this.currentUser = this.users.find((user) => user.id === this.selectedUserId) ?? this.users[0];
+  loginWithPassword(): void {
+    const username = this.loginUsername.trim().toLowerCase();
+    const user = this.users.find((entry) => entry.name.toLowerCase() === username);
+    if (!user) {
+      this.loginError = 'Invalid username.';
+      return;
+    }
+    if (this.loginPassword !== this.demoPassword) {
+      this.loginError = 'Invalid password.';
+      return;
+    }
+    this.loginError = '';
+    this.currentUser = user;
     localStorage.setItem(this.sessionKey, this.currentUser.id);
+    this.loginPassword = '';
     this.openDashboard();
   }
 
-  quickLogin(user: DemoUser): void {
-    this.selectedUserId = user.id;
-    this.login();
+  loginWithSso(): void {
+    const username = this.loginUsername.trim().toLowerCase();
+    const user = this.users.find((entry) => entry.name.toLowerCase() === username);
+    if (!user) {
+      this.loginError = 'Enter a valid username for SSO login.';
+      return;
+    }
+    this.loginError = '';
+    this.currentUser = user;
+    localStorage.setItem(this.sessionKey, user.id);
+    this.loginPassword = '';
+    this.openDashboard();
   }
 
   logout(): void {
     localStorage.removeItem(this.sessionKey);
     this.currentUser = null;
     this.selectedMoc = null;
+    this.showCreateModal = false;
+    this.loginError = '';
+    this.loginPassword = '';
     this.view = 'login';
   }
 
@@ -203,6 +321,14 @@ export class App {
     this.view = this.currentUser ? 'dashboard' : 'login';
     this.selectedMoc = null;
     this.submitAttempted = false;
+    this.showCreateModal = false;
+  }
+
+  openActionBoard(): void {
+    if (!this.currentUser) return;
+    this.view = 'actions';
+    this.selectedMoc = null;
+    this.showCreateModal = false;
   }
 
   openCreate(): void {
@@ -210,14 +336,53 @@ export class App {
     this.form = this.blankForm();
     this.submitAttempted = false;
     this.isSubmitting = false;
-    this.selectedMoc = null;
-    this.view = 'create';
+    this.lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.showCreateModal = true;
+    setTimeout(() => this.focusFirstModalControl(), 0);
+  }
+
+  closeCreateModal(): void {
+    this.showCreateModal = false;
+    this.submitAttempted = false;
+    this.isSubmitting = false;
+    this.restoreFocusAfterModal();
+  }
+
+  onCreateModalBackdropClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) this.closeCreateModal();
+  }
+
+  onCreateModalKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Tab' || !this.createModalCard) return;
+    const focusable = this.modalFocusableElements();
+    if (!focusable.length) return;
+
+    const active = document.activeElement as HTMLElement | null;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+      return;
+    }
+
+    if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapePressed(): void {
+    if (this.showCreateModal) this.closeCreateModal();
   }
 
   openAdmin(): void {
     if (this.currentUser?.role !== 'Admin') return;
     this.view = 'admin';
     this.selectedMoc = null;
+    this.showCreateModal = false;
   }
 
   openDetail(record: MocRecord): void {
@@ -225,12 +390,21 @@ export class App {
     this.selectedMoc = record;
     this.newAction = { ...this.blankAction(), assigneeId: record.ownerId };
     this.submitAttempted = false;
+    this.implementRejectionComment = '';
+    this.startupRejectionComment = '';
+    this.cancelComment = '';
+    this.reworkNotice = this.latestDecisionComment(record, 'Implement', 'Rejected');
     this.view = 'detail';
+    this.showCreateModal = false;
+  }
+
+  openFromActionBoard(row: ActionBoardRow): void {
+    this.openDetail(row.record);
   }
 
   cancelCreate(): void {
     this.form = this.blankForm();
-    this.openDashboard();
+    this.closeCreateModal();
   }
 
   canInitiate(): boolean {
@@ -248,16 +422,21 @@ export class App {
         (this.currentUser.discipline === 'Operations' && record.workflowState === 'PSSR')
       );
     }
-    return record.managerId === this.currentUser.id && record.workflowState === 'Approval to Implement';
+    return (
+      record.managerId === this.currentUser.id &&
+      record.waitingOn === 'Manager' &&
+      (record.workflowState === 'Approval to Implement' || record.workflowState === 'Approval for Start Up')
+    );
   }
 
   waitingOnFor(record: MocRecord): string {
-    if (record.status === 'Closed') return '-';
+    if (record.status !== 'Open') return '-';
     if (record.waitingOn) return record.waitingOn;
     if (record.workflowState === 'Evaluation') return 'Evaluator';
     if (record.workflowState === 'Approval to Implement') return 'Manager';
     if (record.workflowState === 'Implementation') return 'Owner';
     if (record.workflowState === 'PSSR') return 'Operations';
+    if (record.workflowState === 'Approval for Start Up') return 'Manager';
     if (record.workflowState === 'Ready for Closure') return 'Owner';
     return '-';
   }
@@ -270,33 +449,68 @@ export class App {
 
   nextRouteLabel(record: MocRecord): string {
     if (record.status === 'Closed') return 'Workflow complete';
+    if (record.status === 'Cancelled') return 'MOC cancelled';
     const assignedTo = this.currentAssignedTo(record);
     if (record.workflowState === 'Evaluation') return `Evaluation assigned to ${assignedTo}`;
-    if (record.workflowState === 'Approval to Implement') return `Approval assigned to ${assignedTo}`;
-    if (record.workflowState === 'Implementation') return `Implementation assigned to ${assignedTo}`;
+    if (record.workflowState === 'Approval to Implement') return `Implementation approval assigned to ${assignedTo}`;
+    if (record.workflowState === 'Implementation') return `Implementation completion assigned to ${assignedTo}`;
     if (record.workflowState === 'PSSR') return `PSSR assigned to ${assignedTo}`;
-    if (record.workflowState === 'Ready for Closure') return `Closure assigned to ${assignedTo}`;
+    if (record.workflowState === 'Approval for Start Up') return `Startup approval assigned to ${assignedTo}`;
+    if (record.workflowState === 'Ready for Closure') return `Closure work assigned to ${assignedTo}`;
     return assignedTo;
   }
 
-  checklistText(discipline: string): string {
-    return (this.checklistTemplates.evaluation[discipline] ?? []).join('\n');
+  checklistItems(discipline: string): ChecklistTemplateItem[] {
+    if (!this.checklistTemplates.evaluation[discipline]) {
+      this.checklistTemplates.evaluation[discipline] = this.templateItems(this.defaultChecklist(discipline), discipline);
+    }
+    return this.checklistTemplates.evaluation[discipline];
   }
 
-  updateChecklistText(discipline: string, value: string): void {
-    this.checklistTemplates.evaluation[discipline] = this.linesFromText(value);
+  addChecklistItem(discipline: string): void {
+    const items = this.checklistItems(discipline);
+    items.push(this.newTemplateItem(discipline));
   }
 
-  pssrChecklistText(): string {
-    return this.checklistTemplates.pssr.join('\n');
+  removeChecklistItem(discipline: string, itemId: string): void {
+    const next = this.checklistItems(discipline).filter((item) => item.id !== itemId);
+    this.checklistTemplates.evaluation[discipline] = next.length ? next : [this.newTemplateItem(discipline)];
   }
 
-  updatePssrChecklistText(value: string): void {
-    this.checklistTemplates.pssr = this.linesFromText(value);
+  pssrChecklistItems(): ChecklistTemplateItem[] {
+    if (!this.checklistTemplates.pssr.length) {
+      this.checklistTemplates.pssr = this.templateItems(['Work completed per design'], 'PSSR');
+    }
+    return this.checklistTemplates.pssr;
+  }
+
+  addPssrChecklistItem(): void {
+    this.pssrChecklistItems().push(this.newTemplateItem('PSSR'));
+  }
+
+  removePssrChecklistItem(itemId: string): void {
+    const next = this.pssrChecklistItems().filter((item) => item.id !== itemId);
+    this.checklistTemplates.pssr = next.length ? next : [this.newTemplateItem('PSSR')];
   }
 
   saveChecklistTemplates(): void {
+    this.checklistTemplates = this.normalizeChecklistTemplates(this.checklistTemplates);
     localStorage.setItem(this.checklistKey, JSON.stringify(this.checklistTemplates));
+  }
+
+  workflowStepClass(record: MocRecord, stepKey: WorkflowState | 'Initiated'): string {
+    const currentIndex = this.workflowStepIndex(record);
+    const stepIndex = this.workflowSteps.findIndex((entry) => entry.key === stepKey);
+    if (stepIndex < 0) return 'step';
+    if (stepIndex < currentIndex) return 'step complete';
+    if (stepIndex === currentIndex) return 'step active';
+    return 'step';
+  }
+
+  workflowProgressLabel(record: MocRecord): string {
+    const index = this.workflowStepIndex(record);
+    const step = this.workflowSteps[index] ?? this.workflowSteps[0];
+    return `Step ${index + 1} of ${this.workflowSteps.length}: ${step.label}`;
   }
 
   userName(userId: string): string {
@@ -316,35 +530,125 @@ export class App {
     return record.evaluations.find((task) => task.evaluatorId === this.currentUser?.id) ?? null;
   }
 
+  routeEvents(record: MocRecord): WorkflowEvent[] {
+    return [...record.workflowHistory].sort((a, b) => b.at.localeCompare(a.at));
+  }
+
+  trackByEventId(_index: number, event: WorkflowEvent): string {
+    return event.id;
+  }
+
+  completedEvaluationCount(record: MocRecord): number {
+    return record.evaluations.filter((task) => task.complete).length;
+  }
+
+  requiredChecklistCount(task: EvaluationTask): number {
+    const required = task.checklist.filter((item) => item.required).length;
+    return required > 0 ? required : task.checklist.length;
+  }
+
+  completedRequiredChecklistCount(task: EvaluationTask): number {
+    const requiredItems = task.checklist.filter((item) => item.required);
+    if (requiredItems.length > 0) return requiredItems.filter((item) => item.complete).length;
+    return task.checklist.filter((item) => item.complete).length;
+  }
+
+  checklistProgress(task: EvaluationTask): string {
+    const done = this.completedRequiredChecklistCount(task);
+    const total = this.requiredChecklistCount(task);
+    return `${done}/${total}`;
+  }
+
+  actionRequirementLabel(task: EvaluationTask): string {
+    if (task.actionRequired === null) return 'Not selected';
+    return task.actionRequired ? 'Required' : 'Not required';
+  }
+
+  evaluationStatusLabel(record: MocRecord, task: EvaluationTask): string {
+    if (task.complete) return 'Complete';
+    const checklistReady = task.checklist.every((item) => !item.required || item.complete);
+    if (!checklistReady) return 'Checklist Pending';
+    if (task.actionRequired === null) return 'Action Decision Pending';
+    if (!task.actionRequired) return 'Ready for Evaluator Completion';
+
+    const evaluatorActions = record.actionItems.filter((item) => item.phase === 'Evaluation' && item.createdBy === task.evaluatorId);
+    if (!evaluatorActions.length) return 'Action Creation Pending';
+    if (evaluatorActions.some((item) => !item.complete)) return 'Action Closure Pending';
+    if (evaluatorActions.some((item) => !item.reviewedByEvaluator)) return 'Evaluator Review Pending';
+    return 'Ready for Evaluator Completion';
+  }
+
+  private evaluationActionContext(
+    record: MocRecord,
+  ): { mode: 'evaluator'; task: EvaluationTask } | { mode: 'action-owner'; relatedAction: ActionItem } | null {
+    const task = this.evaluatorTask(record);
+    if (this.canEvaluate(record) && task?.actionRequired) {
+      return { mode: 'evaluator', task };
+    }
+    if (!this.currentUser || this.currentUser.role === 'Manager') return null;
+
+    const relatedAction =
+      record.actionItems.find(
+        (item) =>
+          item.phase === 'Evaluation' &&
+          item.assigneeId === this.currentUser!.id &&
+          item.complete &&
+          !item.reviewedByEvaluator &&
+          this.isMutable(record),
+      ) ?? null;
+
+    if (relatedAction) return { mode: 'action-owner', relatedAction };
+    return null;
+  }
+
   pendingReviewActions(record: MocRecord): ActionItem[] {
     return record.actionItems.filter((item) => item.phase === 'Evaluation' && item.complete && !item.reviewedByEvaluator);
   }
 
   canReviewAction(item: ActionItem): boolean {
-    return Boolean(this.currentUser && item.complete && !item.reviewedByEvaluator && item.createdBy === this.currentUser.id);
+    return Boolean(
+      this.currentUser &&
+        item.complete &&
+        !item.reviewedByEvaluator &&
+        (item.createdBy === this.currentUser.id || this.currentUser.role === 'Admin'),
+    );
   }
 
   canCompleteAction(record: MocRecord, item: ActionItem): boolean {
-    if (!this.currentUser || item.complete) return false;
+    if (!this.currentUser || item.complete || !this.isMutable(record)) return false;
     return item.assigneeId === this.currentUser.id || this.currentUser.role === 'Admin' || this.currentUser.id === record.ownerId;
   }
 
   canSubmitActionCompletion(record: MocRecord, item: ActionItem): boolean {
-    return this.canCompleteAction(record, item) && Boolean(this.actionComments[item.id]?.trim()) && Boolean(this.actionEvidence[item.id]);
+    return this.canCompleteAction(record, item) && Boolean(this.actionComments[item.id]?.trim());
   }
 
   canEvaluate(record: MocRecord): boolean {
     const task = this.evaluatorTask(record);
-    return Boolean(this.currentUser?.role === 'Evaluator' && task && !task.complete && record.workflowState === 'Evaluation');
+    return Boolean(this.currentUser?.role === 'Evaluator' && task && !task.complete && record.workflowState === 'Evaluation' && this.isMutable(record));
   }
 
   canShowWorkflowActions(record: MocRecord): boolean {
     return (
       this.canSubmitForApproval(record) ||
       this.canApproveToImplement(record) ||
+      this.canSendBackToEvaluation(record) ||
+      this.canCancelMoc(record) ||
       this.canMarkImplemented(record) ||
       this.canCompletePssr(record) ||
+      this.canApproveStartup(record) ||
+      this.canSendBackToPssr(record) ||
+      this.canProceedToReadyForClosure(record) ||
       this.canClose(record)
+    );
+  }
+
+  canEditRework(record: MocRecord): boolean {
+    return (
+      Boolean(this.currentUser && (this.currentUser.id === record.ownerId || this.currentUser.role === 'Admin')) &&
+      record.workflowState === 'Evaluation' &&
+      Boolean(this.latestDecision(record, 'Implement', 'Rejected')) &&
+      this.isMutable(record)
     );
   }
 
@@ -357,57 +661,117 @@ export class App {
     return record.actionItems.some((item) => item.phase === 'Evaluation' && item.createdBy === task.evaluatorId);
   }
 
-  toggleChecklist(item: ChecklistItem, checked: boolean): void {
+  toggleChecklist(record: MocRecord, item: ChecklistItem, checked: boolean): void {
+    if (!this.canEvaluate(record)) return;
     item.complete = checked;
+    item.completedByUserId = checked ? this.currentUser?.id : undefined;
+    item.completedAt = checked ? new Date().toISOString() : undefined;
     this.touchSelectedMoc();
   }
 
-  canCompleteEvaluation(task: EvaluationTask): boolean {
+  canCompleteEvaluation(record: MocRecord, task: EvaluationTask): boolean {
     if (task.complete || !task.checklist.every((item) => !item.required || item.complete)) return false;
     if (task.actionRequired === null) return false;
-    if (task.actionRequired) return Boolean(this.selectedMoc && this.evaluatorCreatedAction(this.selectedMoc, task));
-    return true;
+    if (!task.actionRequired) return true;
+    const evaluatorActions = record.actionItems.filter((item) => item.phase === 'Evaluation' && item.createdBy === task.evaluatorId);
+    return evaluatorActions.length > 0 && evaluatorActions.every((item) => item.complete && item.reviewedByEvaluator);
   }
 
   completeEvaluation(record: MocRecord, task: EvaluationTask): void {
-    if (!this.canCompleteEvaluation(task)) return;
+    if (!this.canCompleteEvaluation(record, task)) return;
     task.complete = true;
     this.addHistory(record, 'Evaluation', `Evaluation completed for ${task.discipline}.`);
     this.recalculateRecordState(record);
     this.saveRecords();
   }
 
-  createActionItem(record: MocRecord): void {
-    if (!this.currentUser || !this.newAction.description.trim() || !this.newAction.assigneeId || !this.newAction.dueDate) return;
+  canCreatePssrAction(record: MocRecord): boolean {
+    return (
+      Boolean(this.currentUser && (this.currentUser.discipline === 'Operations' || this.currentUser.role === 'Admin')) &&
+      record.workflowState === 'PSSR' &&
+      this.isMutable(record)
+    );
+  }
 
-    record.actionItems = [
-      ...record.actionItems,
-      {
-        id: `AI${Date.now()}`,
-        phase: this.newAction.phase,
-        description: this.newAction.description.trim(),
-        assigneeId: this.newAction.assigneeId,
-        dueDate: this.newAction.dueDate,
-        complete: false,
-        reviewedByEvaluator: false,
-        createdBy: this.currentUser.id,
-      },
-    ];
+  canCreateEvaluationAction(record: MocRecord): boolean {
+    const context = this.evaluationActionContext(record);
+    if (context?.mode === 'action-owner' && this.newAction.phase === 'Evaluation') {
+      this.newAction.phase = 'Post-Startup';
+    }
+    return Boolean(context && this.isMutable(record) && record.workflowState === 'Evaluation' && !record.evaluations.every((task) => task.complete));
+  }
 
+  canCreateEvaluationPhaseAction(record: MocRecord): boolean {
+    const context = this.evaluationActionContext(record);
+    return Boolean(context && context.mode === 'evaluator');
+  }
+
+  createActionItem(record: MocRecord, source: 'evaluation' | 'pssr'): void {
+    if (!this.currentUser || !this.isMutable(record) || !this.newAction.description.trim() || !this.newAction.assigneeId || !this.newAction.dueDate) return;
+
+    const evaluationContext = source === 'evaluation' ? this.evaluationActionContext(record) : null;
+    if (source === 'evaluation' && !evaluationContext) return;
+    if (source === 'evaluation' && evaluationContext && evaluationContext.mode === 'action-owner' && this.newAction.phase === 'Evaluation') return;
+    if (source === 'pssr' && !this.canCreatePssrAction(record)) return;
+    if (source === 'pssr' && this.newAction.phase === 'Evaluation') return;
+
+    const task = this.evaluatorTask(record);
+    const sourceDiscipline =
+      source === 'evaluation'
+        ? evaluationContext && evaluationContext.mode === 'evaluator'
+          ? evaluationContext.task.discipline
+          : evaluationContext && evaluationContext.mode === 'action-owner'
+            ? evaluationContext.relatedAction.sourceDiscipline
+            : task?.discipline
+        : undefined;
+
+    const action: ActionItem = {
+      id: `AI${Date.now()}`,
+      phase: this.newAction.phase,
+      description: this.newAction.description.trim(),
+      assigneeId: this.newAction.assigneeId,
+      dueDate: this.newAction.dueDate,
+      complete: false,
+      reviewedByEvaluator: this.newAction.phase !== 'Evaluation',
+      createdBy: this.currentUser.id,
+      sourceDiscipline,
+    };
+
+    record.actionItems = [...record.actionItems, action];
     this.newAction = { ...this.blankAction(), assigneeId: record.ownerId };
-    this.addHistory(record, record.workflowState, `Action item assigned to ${this.userName(record.actionItems[record.actionItems.length - 1].assigneeId)}.`);
+    this.addHistory(
+      record,
+      record.workflowState,
+      `${action.phase} action item created and assigned to ${this.userName(action.assigneeId)}.`,
+    );
     this.recalculateRecordState(record);
     this.saveRecords();
   }
 
+  async onActionEvidenceSelected(event: Event, item: ActionItem): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) {
+      this.actionEvidence[item.id] = undefined;
+      return;
+    }
+    const dataUrl = await this.readFileAsDataUrl(file);
+    this.actionEvidence[item.id] = { name: file.name, dataUrl, mimeType: file.type };
+  }
+
   completeAction(record: MocRecord, item: ActionItem): void {
-    if (!this.currentUser) return;
-    if (!this.canSubmitActionCompletion(record, item)) return;
+    if (!this.currentUser || !this.canSubmitActionCompletion(record, item)) return;
     item.complete = true;
+    item.completedByUserId = this.currentUser.id;
+    item.completedAt = new Date().toISOString();
     item.reviewedByEvaluator = item.phase !== 'Evaluation';
-    const comment = this.actionComments[item.id]?.trim();
-    item.evidenceFileName = this.actionEvidence[item.id] || undefined;
-    item.comments = comment ? `${comment} - ${this.currentUser.name}` : `Completed by ${this.currentUser.name}`;
+    item.comments = this.actionComments[item.id]?.trim();
+    const evidence = this.actionEvidence[item.id];
+    if (evidence) {
+      item.evidenceFileName = evidence.name;
+      item.evidenceDataUrl = evidence.dataUrl;
+      item.evidenceMimeType = evidence.mimeType;
+    }
     delete this.actionComments[item.id];
     delete this.actionEvidence[item.id];
     this.addHistory(record, record.workflowState, `Action item completed by ${this.currentUser.name}.`);
@@ -418,14 +782,15 @@ export class App {
   reviewAction(record: MocRecord, item: ActionItem): void {
     if (!this.canReviewAction(item)) return;
     item.reviewedByEvaluator = true;
-    item.comments = `Reviewed by ${this.currentUser?.name}`;
-    this.addHistory(record, record.workflowState, `Evaluator reviewed completed action item.`);
+    item.comments = `${item.comments ?? ''}${item.comments ? ' | ' : ''}Reviewed by ${this.currentUser?.name}`.trim();
+    this.addHistory(record, record.workflowState, `Evaluation action item reviewed by ${this.currentUser?.name}.`);
     this.recalculateRecordState(record);
     this.saveRecords();
   }
 
   canSubmitForApproval(record: MocRecord): boolean {
     return (
+      this.isMutable(record) &&
       Boolean(this.currentUser && (this.currentUser.id === record.ownerId || this.currentUser.role === 'Admin')) &&
       record.workflowState === 'Evaluation' &&
       record.evaluations.every((task) => task.complete) &&
@@ -433,37 +798,22 @@ export class App {
     );
   }
 
-  canCreatePostStartupAction(record: MocRecord): boolean {
-    return Boolean(
-      this.currentUser &&
-        record.workflowState === 'Evaluation' &&
-        record.actionItems.some((item) => item.phase === 'Evaluation' && item.assigneeId === this.currentUser?.id && item.complete),
-    );
-  }
-
-  canCreateActionItem(record: MocRecord): boolean {
-    const task = this.evaluatorTask(record);
-    return Boolean((this.canEvaluate(record) && task?.actionRequired) || this.canCreatePostStartupAction(record));
-  }
-
-  onEvidenceSelected(event: Event, item: ActionItem): void {
-    const input = event.target as HTMLInputElement;
-    this.actionEvidence[item.id] = input.files?.[0]?.name ?? '';
-  }
-
   submitForApproval(record: MocRecord): void {
     if (!this.canSubmitForApproval(record)) return;
     record.workflowState = 'Approval to Implement';
     record.waitingOn = 'Manager';
-    record.actionFlag = '';
-    this.finishWorkflowUpdate(record, 'Submitted for manager approval.');
+    record.actionFlag = 'Manager';
+    this.addApproval(record, 'Implement', 'Submitted');
+    this.finishWorkflowUpdate(record, 'Submitted for manager approval to implement.');
   }
 
   canApproveToImplement(record: MocRecord): boolean {
     return Boolean(
-      this.currentUser &&
+      this.isMutable(record) &&
+        this.currentUser &&
         (this.currentUser.id === record.managerId || this.currentUser.role === 'Admin') &&
-        record.workflowState === 'Approval to Implement',
+        record.workflowState === 'Approval to Implement' &&
+        record.waitingOn === 'Manager',
     );
   }
 
@@ -472,14 +822,49 @@ export class App {
     record.workflowState = 'Implementation';
     record.waitingOn = 'Owner';
     record.actionFlag = 'Owner';
-    this.finishWorkflowUpdate(record, 'Approved to implement.');
+    this.addApproval(record, 'Implement', 'Approved');
+    this.finishWorkflowUpdate(record, 'Manager approved to implement.');
+  }
+
+  canSendBackToEvaluation(record: MocRecord): boolean {
+    return this.canApproveToImplement(record);
+  }
+
+  sendBackToEvaluation(record: MocRecord): void {
+    if (!this.canSendBackToEvaluation(record)) return;
+    const comment = this.implementRejectionComment.trim();
+    if (!comment) return;
+    record.workflowState = 'Evaluation';
+    record.waitingOn = 'Owner';
+    record.actionFlag = 'Owner';
+    this.resetEvaluationTasks(record);
+    this.addApproval(record, 'Implement', 'Rejected', comment);
+    this.implementRejectionComment = '';
+    this.finishWorkflowUpdate(record, `Manager sent back to Evaluation. Comment: ${comment}`);
+  }
+
+  canCancelMoc(record: MocRecord): boolean {
+    return this.canApproveToImplement(record);
+  }
+
+  cancelMoc(record: MocRecord): void {
+    if (!this.canCancelMoc(record)) return;
+    const comment = this.cancelComment.trim();
+    if (!comment) return;
+    record.workflowState = 'Cancelled';
+    record.status = 'Cancelled';
+    record.waitingOn = '-';
+    record.actionFlag = 'Complete';
+    this.addApproval(record, 'Implement', 'Cancelled', comment);
+    this.cancelComment = '';
+    this.finishWorkflowUpdate(record, `MOC cancelled by manager. Comment: ${comment}`);
   }
 
   canMarkImplemented(record: MocRecord): boolean {
     return (
+      this.isMutable(record) &&
       Boolean(this.currentUser && (this.currentUser.id === record.ownerId || this.currentUser.role === 'Admin')) &&
-      record.workflowState === 'Implementation' &&
-      !record.actionItems.some((item) => item.phase === 'Pre-Startup' && !item.complete)
+      record.workflowState === 'Implementation'
     );
   }
 
@@ -487,12 +872,13 @@ export class App {
     if (!this.canMarkImplemented(record)) return;
     record.workflowState = 'PSSR';
     record.waitingOn = 'Operations';
-    record.actionFlag = '';
+    record.actionFlag = 'Operations';
     this.finishWorkflowUpdate(record, 'Implementation completed. Routed to PSSR.');
   }
 
   canCompletePssr(record: MocRecord): boolean {
     return (
+      this.isMutable(record) &&
       Boolean(this.currentUser && (this.currentUser.discipline === 'Operations' || this.currentUser.role === 'Admin')) &&
       record.workflowState === 'PSSR' &&
       record.pssrChecklist.every((item) => !item.required || item.complete) &&
@@ -506,18 +892,73 @@ export class App {
 
   completePssr(record: MocRecord): void {
     if (!this.canCompletePssr(record)) return;
-    record.workflowState = 'Ready for Closure';
+    record.workflowState = 'Approval for Start Up';
+    record.waitingOn = 'Manager';
+    record.actionFlag = 'Manager';
+    this.addApproval(record, 'Start Up', 'Submitted');
+    this.finishWorkflowUpdate(record, 'PSSR completed. Routed for startup approval.');
+  }
+
+  canApproveStartup(record: MocRecord): boolean {
+    return Boolean(
+      this.isMutable(record) &&
+        this.currentUser &&
+        (this.currentUser.id === record.managerId || this.currentUser.role === 'Admin') &&
+        record.workflowState === 'Approval for Start Up' &&
+        record.waitingOn === 'Manager' &&
+        record.pssrChecklist.every((item) => !item.required || item.complete) &&
+        !record.actionItems.some((item) => item.phase === 'Pre-Startup' && !item.complete),
+    );
+  }
+
+  approveStartup(record: MocRecord): void {
+    if (!this.canApproveStartup(record)) return;
+    this.addApproval(record, 'Start Up', 'Approved');
     record.waitingOn = 'Owner';
     record.actionFlag = 'Owner';
-    this.finishWorkflowUpdate(record, 'PSSR completed. Routed to owner for closure.');
+    this.finishWorkflowUpdate(record, 'Manager approved startup. Owner must proceed to Ready for Closure.');
+  }
+
+  canSendBackToPssr(record: MocRecord): boolean {
+    return this.canApproveStartup(record);
+  }
+
+  sendBackToPssr(record: MocRecord): void {
+    if (!this.canSendBackToPssr(record)) return;
+    const comment = this.startupRejectionComment.trim();
+    if (!comment) return;
+    this.addApproval(record, 'Start Up', 'Rejected', comment);
+    record.workflowState = 'PSSR';
+    record.waitingOn = 'Operations';
+    record.actionFlag = 'Operations';
+    this.startupRejectionComment = '';
+    this.finishWorkflowUpdate(record, `Manager sent back to PSSR. Comment: ${comment}`);
+  }
+
+  canProceedToReadyForClosure(record: MocRecord): boolean {
+    return (
+      this.isMutable(record) &&
+      Boolean(this.currentUser && (this.currentUser.id === record.ownerId || this.currentUser.role === 'Admin')) &&
+      record.workflowState === 'Approval for Start Up' &&
+      this.latestDecision(record, 'Start Up', 'Approved') !== undefined
+    );
+  }
+
+  proceedToReadyForClosure(record: MocRecord): void {
+    if (!this.canProceedToReadyForClosure(record)) return;
+    record.workflowState = 'Ready for Closure';
+    this.recalculateRecordState(record);
+    this.finishWorkflowUpdate(record, 'Owner proceeded to Ready for Closure.');
   }
 
   canClose(record: MocRecord): boolean {
     return (
+      this.isMutable(record) &&
       Boolean(this.currentUser && (this.currentUser.id === record.ownerId || this.currentUser.role === 'Admin')) &&
       record.workflowState === 'Ready for Closure' &&
       record.evaluations.every((task) => task.complete) &&
       record.pssrChecklist.every((item) => !item.required || item.complete) &&
+      this.latestDecision(record, 'Start Up', 'Approved') !== undefined &&
       !record.actionItems.some((item) => !item.complete)
     );
   }
@@ -533,8 +974,11 @@ export class App {
     this.finishWorkflowUpdate(record, 'MOC closed.');
   }
 
-  togglePssrChecklist(item: ChecklistItem, checked: boolean): void {
+  togglePssrChecklist(record: MocRecord, item: ChecklistItem, checked: boolean): void {
+    if (!this.canCreatePssrAction(record)) return;
     item.complete = checked;
+    item.completedByUserId = checked ? this.currentUser?.id : undefined;
+    item.completedAt = checked ? new Date().toISOString() : undefined;
     this.touchSelectedMoc();
   }
 
@@ -547,10 +991,68 @@ export class App {
     }
   }
 
-  onFileSelected(event: Event): void {
+  toggleReworkDiscipline(record: MocRecord, discipline: string, checked: boolean): void {
+    if (!this.canEditRework(record)) return;
+    if (checked && !record.disciplines.includes(discipline)) {
+      record.disciplines = [...record.disciplines, discipline];
+    }
+    if (!checked) {
+      record.disciplines = record.disciplines.filter((item) => item !== discipline);
+    }
+  }
+
+  isReworkDisciplineSelected(record: MocRecord, discipline: string): boolean {
+    return record.disciplines.includes(discipline);
+  }
+
+  async onFileSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     this.form.supportingDocumentName = file?.name ?? '';
+    this.form.supportingDocumentDataUrl = undefined;
+    this.form.supportingDocumentMimeType = undefined;
+    if (!file) return;
+    this.form.supportingDocumentDataUrl = await this.readFileAsDataUrl(file);
+    this.form.supportingDocumentMimeType = file.type;
+  }
+
+  async onReworkFileSelected(event: Event, record: MocRecord): Promise<void> {
+    if (!this.canEditRework(record)) return;
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    record.supportingDocumentName = file.name;
+    record.supportingDocumentDataUrl = await this.readFileAsDataUrl(file);
+    record.supportingDocumentMimeType = file.type;
+    this.touchSelectedMoc();
+  }
+
+  openSupportingDocument(record: MocRecord): void {
+    if (!record.supportingDocumentDataUrl) return;
+    this.downloadDataUrl(record.supportingDocumentDataUrl, record.supportingDocumentName);
+  }
+
+  openActionEvidence(item: ActionItem): void {
+    if (!item.evidenceDataUrl || !item.evidenceFileName) return;
+    this.downloadDataUrl(item.evidenceDataUrl, item.evidenceFileName);
+  }
+
+  saveReworkEdits(record: MocRecord): void {
+    if (!this.canEditRework(record)) return;
+    if (!record.title.trim() || !record.description.trim() || !record.basis.trim() || !record.implementationDate || record.disciplines.length === 0) return;
+    if (record.implementationDate < this.minDate) return;
+    record.evaluatorIds = record.disciplines.map((discipline) => this.evaluatorForDiscipline(discipline));
+    this.addHistory(record, 'Evaluation', 'Owner updated initiation fields after manager rework request.');
+    this.touchSelectedMoc();
+  }
+
+  latestDecisionComment(record: MocRecord, gate: GateType, decision: GateDecision): string {
+    return this.latestDecision(record, gate, decision)?.comments ?? '';
+  }
+
+  latestApproval(record: MocRecord, gate: GateType): ApprovalEvent | undefined {
+    const gateEntries = record.approvalHistory.filter((entry) => entry.gate === gate);
+    return gateEntries.at(-1);
   }
 
   submitMoc(): void {
@@ -566,6 +1068,8 @@ export class App {
       basis: this.form.basis.trim(),
       disciplines: [...this.form.disciplines],
       supportingDocumentName: this.form.supportingDocumentName,
+      supportingDocumentDataUrl: this.form.supportingDocumentDataUrl,
+      supportingDocumentMimeType: this.form.supportingDocumentMimeType,
       implementationDate: this.form.implementationDate,
       ownerId: this.currentUser.id,
       evaluatorIds: this.form.disciplines.map((discipline) => this.evaluatorForDiscipline(discipline)),
@@ -573,6 +1077,7 @@ export class App {
       evaluations: this.form.disciplines.map((discipline) => this.makeEvaluationTask(discipline)),
       pssrChecklist: this.makePssrChecklist(false),
       actionItems: [],
+      approvalHistory: [],
       workflowState: 'Evaluation',
       status: 'Open',
       waitingOn: 'Evaluator',
@@ -595,6 +1100,7 @@ export class App {
     this.saveRecords();
     this.form = this.blankForm();
     this.selectedMoc = record;
+    this.showCreateModal = false;
     this.view = 'detail';
     this.isSubmitting = false;
   }
@@ -631,34 +1137,41 @@ export class App {
     );
   }
 
+  private isMutable(record: MocRecord): boolean {
+    return record.status === 'Open' && record.workflowState !== 'Closed' && record.workflowState !== 'Cancelled';
+  }
+
   private evaluatorForDiscipline(discipline: string): string {
     if (discipline === 'Mechanical' || discipline === 'Electrical' || discipline === 'Instrumentation') return 'mech1';
     if (discipline === 'Process') return 'process1';
+    if (discipline === 'Environmental') return 'env1';
     if (discipline === 'HSE') return 'hse1';
     return 'ops1';
   }
 
   private makeEvaluationTask(discipline: string): EvaluationTask {
+    const template = this.activeTemplateItems(this.checklistTemplates.evaluation[discipline], discipline);
     return {
       id: `EV-${discipline.replace(/\s+/g, '-')}`,
       discipline,
       evaluatorId: this.evaluatorForDiscipline(discipline),
       complete: false,
       actionRequired: null,
-      checklist: (this.checklistTemplates.evaluation[discipline] ?? this.defaultChecklist(discipline)).map((text, index) => ({
+      checklist: template.map((item, index) => ({
         id: `${discipline}-${index + 1}`,
-        text,
-        required: true,
+        text: item.text,
+        required: item.required,
         complete: false,
       })),
     };
   }
 
   private makePssrChecklist(complete: boolean): ChecklistItem[] {
-    return this.checklistTemplates.pssr.map((text, index) => ({
+    const template = this.activeTemplateItems(this.checklistTemplates.pssr, 'PSSR');
+    return template.map((item, index) => ({
       id: `PSSR-${index + 1}`,
-      text,
-      required: true,
+      text: item.text,
+      required: item.required,
       complete,
     }));
   }
@@ -669,43 +1182,127 @@ export class App {
     if (discipline === 'Operations') return ['Operations impact reviewed', 'Procedure update need identified'];
     if (discipline === 'HSE') return ['HSE impact reviewed', 'Environmental or permit impact considered'];
     if (discipline === 'Electrical') return ['Electrical isolation reviewed', 'Electrical design basis checked'];
+    if (discipline === 'Environmental') return ['Environmental impact reviewed', 'Permit impact confirmed'];
     return ['Instrumentation impact reviewed', 'Control and alarm impact checked'];
   }
 
   private blankAction(): Pick<ActionItem, 'phase' | 'description' | 'assigneeId' | 'dueDate'> {
-    return { phase: 'Evaluation', description: '', assigneeId: 'env1', dueDate: '' };
+    return { phase: 'Evaluation', description: '', assigneeId: 'owner1', dueDate: '' };
   }
 
   private recalculateRecordState(record: MocRecord): void {
-    const openEvaluationActions = record.actionItems.some((item) => item.phase === 'Evaluation' && !item.complete);
-    const evaluationActionsAwaitingReview = this.pendingReviewActions(record).length > 0;
-    const allEvaluationsComplete = record.evaluations.every((task) => task.complete);
+    if (record.status !== 'Open') {
+      record.waitingOn = '-';
+      record.actionFlag = 'Complete';
+      return;
+    }
 
-    if (record.workflowState === 'Evaluation' && allEvaluationsComplete && !openEvaluationActions && !evaluationActionsAwaitingReview) {
+    if (record.workflowState === 'Evaluation') {
+      const openEvaluationActions = record.actionItems.some((item) => item.phase === 'Evaluation' && !item.complete);
+      const evaluationActionsAwaitingReview = this.pendingReviewActions(record).length > 0;
+      const allEvaluationsComplete = record.evaluations.every((task) => task.complete);
+
+      if (allEvaluationsComplete && !openEvaluationActions && !evaluationActionsAwaitingReview) {
+        record.waitingOn = 'Owner';
+        record.actionFlag = 'Owner';
+      } else if (openEvaluationActions) {
+        record.waitingOn = 'Action Owner';
+        record.actionFlag = 'Action Owner';
+      } else if (evaluationActionsAwaitingReview) {
+        record.waitingOn = 'Evaluator';
+        record.actionFlag = 'Evaluator';
+      } else {
+        record.waitingOn = 'Evaluator';
+        record.actionFlag = 'Evaluator';
+      }
+    }
+
+    if (record.workflowState === 'Approval to Implement') {
+      record.waitingOn = 'Manager';
+      record.actionFlag = 'Manager';
+    }
+
+    if (record.workflowState === 'Implementation') {
       record.waitingOn = 'Owner';
       record.actionFlag = 'Owner';
-    } else if (record.workflowState === 'Evaluation') {
-      record.waitingOn = openEvaluationActions ? 'Action Owner' : 'Evaluator';
-      record.actionFlag = openEvaluationActions ? 'Action Owner' : evaluationActionsAwaitingReview ? 'Evaluator' : '';
+    }
+
+    if (record.workflowState === 'PSSR') {
+      record.waitingOn = 'Operations';
+      record.actionFlag = 'Operations';
+    }
+
+    if (record.workflowState === 'Approval for Start Up') {
+      if (this.latestDecision(record, 'Start Up', 'Approved')) {
+        record.waitingOn = 'Owner';
+        record.actionFlag = 'Owner';
+      } else {
+        record.waitingOn = 'Manager';
+        record.actionFlag = 'Manager';
+      }
+    }
+
+    if (record.workflowState === 'Ready for Closure') {
+      const hasOpenPostStartup = record.actionItems.some((item) => item.phase === 'Post-Startup' && !item.complete);
+      record.waitingOn = hasOpenPostStartup ? 'Post-Startup Action' : 'Owner';
+      record.actionFlag = hasOpenPostStartup ? 'Action Owner' : 'Owner';
     }
 
     record.lastUpdatedDate = new Date().toISOString();
   }
 
+  private resetEvaluationTasks(record: MocRecord): void {
+    for (const task of record.evaluations) {
+      task.complete = false;
+      task.actionRequired = null;
+      for (const item of task.checklist) {
+        item.complete = false;
+        item.completedByUserId = undefined;
+        item.completedAt = undefined;
+      }
+    }
+    record.evaluatorIds = record.disciplines.map((discipline) => this.evaluatorForDiscipline(discipline));
+    this.recalculateRecordState(record);
+  }
+
   private touchSelectedMoc(): void {
     if (!this.selectedMoc) return;
     this.selectedMoc.lastUpdatedDate = new Date().toISOString();
+    this.recalculateRecordState(this.selectedMoc);
     this.saveRecords();
   }
 
   private finishWorkflowUpdate(record: MocRecord, note: string): void {
     record.lastUpdatedDate = new Date().toISOString();
+    this.recalculateRecordState(record);
     this.addHistory(record, record.workflowState, note);
     this.selectedMoc = record;
     this.saveRecords();
   }
 
+  private addApproval(record: MocRecord, gate: GateType, decision: GateDecision, comments?: string): void {
+    const byUserId = this.currentUser?.id ?? 'system';
+    record.approvalHistory = [
+      ...record.approvalHistory,
+      {
+        id: `AP-${Date.now()}-${record.approvalHistory.length}`,
+        gate,
+        decision,
+        byUserId,
+        at: new Date().toISOString(),
+        comments,
+      },
+    ];
+  }
+
+  private latestDecision(record: MocRecord, gate: GateType, decision: GateDecision): ApprovalEvent | undefined {
+    const gateEntries = record.approvalHistory.filter((entry) => entry.gate === gate && entry.decision === decision);
+    return gateEntries.at(-1);
+  }
+
   private currentAssignedUserIds(record: MocRecord): string[] {
+    if (record.status !== 'Open') return [];
+
     if (record.workflowState === 'Evaluation') {
       const openActionAssignees = record.actionItems
         .filter((item) => item.phase === 'Evaluation' && !item.complete)
@@ -719,6 +1316,9 @@ export class App {
     if (record.workflowState === 'Approval to Implement') return [record.managerId];
     if (record.workflowState === 'Implementation') return [record.ownerId];
     if (record.workflowState === 'PSSR') return ['ops1'];
+    if (record.workflowState === 'Approval for Start Up') {
+      return this.latestDecision(record, 'Start Up', 'Approved') ? [record.ownerId] : [record.managerId];
+    }
     if (record.workflowState === 'Ready for Closure') {
       const openPostStartupAssignees = record.actionItems
         .filter((item) => item.phase === 'Post-Startup' && !item.complete)
@@ -744,14 +1344,24 @@ export class App {
   }
 
   private blankForm(): InitiationForm {
-    return { title: '', description: '', basis: '', disciplines: [], supportingDocumentName: '', implementationDate: '' };
+    return {
+      title: '',
+      description: '',
+      basis: '',
+      disciplines: [],
+      supportingDocumentName: '',
+      supportingDocumentDataUrl: undefined,
+      supportingDocumentMimeType: undefined,
+      implementationDate: '',
+    };
   }
 
   private loadChecklistTemplates(): ChecklistTemplates {
     const defaults = this.defaultChecklistTemplates();
     try {
-      const saved = JSON.parse(localStorage.getItem(this.checklistKey) ?? 'null') as ChecklistTemplates | null;
-      if (saved?.evaluation && saved?.pssr?.length) return saved;
+      const raw = JSON.parse(localStorage.getItem(this.checklistKey) ?? 'null') as unknown;
+      const migrated = this.migrateChecklistTemplates(raw);
+      if (migrated) return this.normalizeChecklistTemplates(migrated);
     } catch {
       // Use default checklist templates.
     }
@@ -761,28 +1371,133 @@ export class App {
 
   private defaultChecklistTemplates(): ChecklistTemplates {
     return {
-      evaluation: {
-        Mechanical: ['Mechanical integrity reviewed', 'Replacement materials verified'],
-        Process: ['Process conditions reviewed', 'Operating limits evaluated', 'Regulatory impacts considered'],
-        Electrical: ['Electrical isolation reviewed', 'Electrical design basis checked'],
-        Operations: ['Operations impact reviewed', 'Procedure update need identified'],
-        HSE: ['HSE impact reviewed', 'Environmental or permit impact considered'],
-        Instrumentation: ['Instrumentation impact reviewed', 'Control and alarm impact checked'],
-      },
-      pssr: ['Work completed per design', 'Area inspected and safe for startup'],
+      evaluation: Object.fromEntries(
+        this.disciplineOptions.map((discipline) => [discipline, this.templateItems(this.defaultChecklist(discipline), discipline)]),
+      ),
+      pssr: this.templateItems(['Work completed per design', 'Area inspected and safe for startup'], 'PSSR'),
     };
   }
 
-  private linesFromText(value: string): string[] {
-    return value
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
+  private migrateChecklistTemplates(raw: unknown): ChecklistTemplates | null {
+    if (!raw || typeof raw !== 'object') return null;
+    const candidate = raw as { evaluation?: unknown; pssr?: unknown };
+    if (!candidate.evaluation || !candidate.pssr) return null;
+
+    const evaluation: Record<string, ChecklistTemplateItem[]> = {};
+    for (const discipline of this.disciplineOptions) {
+      const source = (candidate.evaluation as Record<string, unknown>)[discipline];
+      evaluation[discipline] = this.migrateTemplateList(source, discipline, this.defaultChecklist(discipline));
+    }
+    const pssr = this.migrateTemplateList(candidate.pssr, 'PSSR', ['Work completed per design', 'Area inspected and safe for startup']);
+    return { evaluation, pssr };
   }
 
-  private deriveTitle(description: string): string {
-    const trimmed = description.trim();
-    return trimmed.length > 30 ? `${trimmed.slice(0, 30)}...` : trimmed;
+  private migrateTemplateList(source: unknown, scope: string, fallback: string[]): ChecklistTemplateItem[] {
+    if (Array.isArray(source)) {
+      if (source.every((entry) => typeof entry === 'string')) {
+        return this.templateItems(source as string[], scope);
+      }
+      return (source as unknown[])
+        .map((entry, index) => {
+          const item = entry as Partial<ChecklistTemplateItem>;
+          const text = String(item?.text ?? '').trim();
+          if (!text) return null;
+          return {
+            id: String(item.id ?? `${scope}-${index + 1}-${Date.now()}`),
+            text,
+            required: item.required !== false,
+            active: item.active !== false,
+          } as ChecklistTemplateItem;
+        })
+        .filter((item): item is ChecklistTemplateItem => Boolean(item));
+    }
+    return this.templateItems(fallback, scope);
+  }
+
+  private templateItems(lines: string[], scope: string): ChecklistTemplateItem[] {
+    return lines.map((text, index) => ({
+      id: `${scope.replace(/\s+/g, '-')}-${index + 1}`,
+      text,
+      required: true,
+      active: true,
+    }));
+  }
+
+  private newTemplateItem(scope: string): ChecklistTemplateItem {
+    return {
+      id: `${scope.replace(/\s+/g, '-')}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      text: '',
+      required: true,
+      active: true,
+    };
+  }
+
+  private normalizeChecklistTemplates(templates: ChecklistTemplates): ChecklistTemplates {
+    const normalizedEvaluation: Record<string, ChecklistTemplateItem[]> = {};
+    for (const discipline of this.disciplineOptions) {
+      const list = templates.evaluation[discipline] ?? [];
+      normalizedEvaluation[discipline] = this.normalizeTemplateList(list, discipline, this.defaultChecklist(discipline));
+    }
+    const normalizedPssr = this.normalizeTemplateList(templates.pssr ?? [], 'PSSR', ['Work completed per design', 'Area inspected and safe for startup']);
+    return { evaluation: normalizedEvaluation, pssr: normalizedPssr };
+  }
+
+  private normalizeTemplateList(items: ChecklistTemplateItem[], scope: string, fallback: string[]): ChecklistTemplateItem[] {
+    const normalized = items
+      .map((item) => ({
+        id: item.id || `${scope}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        text: (item.text ?? '').trim(),
+        required: item.required !== false,
+        active: item.active !== false,
+      }))
+      .filter((item) => item.text.length > 0);
+
+    if (normalized.length > 0) return normalized;
+    return this.templateItems(fallback, scope);
+  }
+
+  private activeTemplateItems(items: ChecklistTemplateItem[] | undefined, scope: string): ChecklistTemplateItem[] {
+    const list = (items ?? []).filter((item) => item.active && item.text.trim());
+    if (list.length > 0) return list;
+    if (scope === 'PSSR') {
+      return this.templateItems(['Work completed per design', 'Area inspected and safe for startup'], 'PSSR');
+    }
+    return this.templateItems(this.defaultChecklist(scope), scope);
+  }
+
+  private workflowStepIndex(record: MocRecord): number {
+    if (record.workflowState === 'Cancelled') {
+      const fallbackStep = [...record.workflowHistory]
+        .reverse()
+        .find((event) => this.workflowSteps.some((entry) => entry.key === event.step && event.step !== 'Closed'));
+      if (fallbackStep) {
+        const idx = this.workflowSteps.findIndex((entry) => entry.key === fallbackStep.step);
+        return idx >= 0 ? idx : 1;
+      }
+      return 1;
+    }
+    const idx = this.workflowSteps.findIndex((entry) => entry.key === record.workflowState);
+    return idx >= 0 ? idx : 1;
+  }
+
+  private modalFocusableElements(): HTMLElement[] {
+    if (!this.createModalCard) return [];
+    return Array.from(
+      this.createModalCard.nativeElement.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((element) => !element.hasAttribute('hidden'));
+  }
+
+  private focusFirstModalControl(): void {
+    const focusable = this.modalFocusableElements();
+    if (focusable.length > 0) focusable[0].focus();
+  }
+
+  private restoreFocusAfterModal(): void {
+    const target = this.lastFocusedElement;
+    this.lastFocusedElement = null;
+    if (target && typeof target.focus === 'function') target.focus();
   }
 
   private nextMocId(): string {
@@ -815,6 +1530,24 @@ export class App {
     localStorage.setItem(this.storageKey, JSON.stringify(this.records));
   }
 
+  private async readFileAsDataUrl(file: File): Promise<string> {
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ''));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  private downloadDataUrl(dataUrl: string, fileName: string): void {
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = fileName || 'document';
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.click();
+  }
+
   private seedRecords(): MocRecord[] {
     const now = new Date().toISOString();
     return [
@@ -832,11 +1565,12 @@ export class App {
         evaluations: [this.seedEvaluation('Mechanical', 'mech1', false)],
         pssrChecklist: this.makePssrChecklist(false),
         actionItems: [],
+        approvalHistory: [],
         workflowState: 'Evaluation',
         status: 'Open',
         waitingOn: 'Evaluator',
-        workflowHistory: [this.seedHistory(now, 'Initiated', 'owner1', ['mech1'], 'MOC initiated and routed to Mike Mechanical for evaluation.')],
-        actionFlag: '',
+        workflowHistory: [this.seedHistory(now, 'Initiated', 'owner1', ['mech1'], 'MOC initiated and routed to Mike for evaluation.')],
+        actionFlag: 'Evaluator',
         createdDate: now,
         lastUpdatedDate: now,
       },
@@ -854,14 +1588,23 @@ export class App {
         evaluations: [this.seedEvaluation('Mechanical', 'mech1', true), this.seedEvaluation('Process', 'process1', true)],
         pssrChecklist: this.makePssrChecklist(false),
         actionItems: [],
+        approvalHistory: [
+          {
+            id: 'AP-seed-1',
+            gate: 'Implement',
+            decision: 'Submitted',
+            byUserId: 'owner1',
+            at: now,
+          },
+        ],
         workflowState: 'Approval to Implement',
         status: 'Open',
         waitingOn: 'Manager',
         workflowHistory: [
           this.seedHistory(now, 'Initiated', 'owner1', ['mech1', 'process1'], 'MOC initiated and routed for discipline evaluation.'),
-          this.seedHistory(now, 'Approval to Implement', 'owner1', ['manager1'], 'Evaluation completed and routed to Morgan Manager.'),
+          this.seedHistory(now, 'Approval to Implement', 'owner1', ['manager1'], 'Evaluation completed and routed to Morgan.'),
         ],
-        actionFlag: '',
+        actionFlag: 'Manager',
         createdDate: now,
         lastUpdatedDate: now,
       },
@@ -879,11 +1622,12 @@ export class App {
         evaluations: [this.seedEvaluation('Operations', 'ops1', false)],
         pssrChecklist: this.makePssrChecklist(false),
         actionItems: [],
+        approvalHistory: [],
         workflowState: 'Evaluation',
         status: 'Open',
         waitingOn: 'Evaluator',
-        workflowHistory: [this.seedHistory(now, 'Initiated', 'owner2', ['ops1'], 'MOC initiated and routed to Oscar Operations for evaluation.')],
-        actionFlag: '',
+        workflowHistory: [this.seedHistory(now, 'Initiated', 'owner2', ['ops1'], 'MOC initiated and routed to Oscar for evaluation.')],
+        actionFlag: 'Evaluator',
         createdDate: now,
         lastUpdatedDate: now,
       },
@@ -901,6 +1645,22 @@ export class App {
         evaluations: [this.seedEvaluation('HSE', 'hse1', true)],
         pssrChecklist: this.makePssrChecklist(true),
         actionItems: [],
+        approvalHistory: [
+          {
+            id: 'AP-seed-2',
+            gate: 'Implement',
+            decision: 'Approved',
+            byUserId: 'manager1',
+            at: now,
+          },
+          {
+            id: 'AP-seed-3',
+            gate: 'Start Up',
+            decision: 'Approved',
+            byUserId: 'manager1',
+            at: now,
+          },
+        ],
         closureDate: now,
         closedByUserId: 'owner2',
         workflowState: 'Closed',
@@ -918,16 +1678,17 @@ export class App {
   }
 
   private seedEvaluation(discipline: string, evaluatorId: string, complete: boolean): EvaluationTask {
+    const template = this.activeTemplateItems(this.checklistTemplates.evaluation[discipline], discipline);
     return {
       id: `EV-${discipline.replace(/\s+/g, '-')}`,
       discipline,
       evaluatorId,
       complete,
       actionRequired: false,
-      checklist: (this.checklistTemplates.evaluation[discipline] ?? this.defaultChecklist(discipline)).map((text, index) => ({
+      checklist: template.map((item, index) => ({
         id: `${discipline}-${index + 1}`,
-        text,
-        required: true,
+        text: item.text,
+        required: item.required,
         complete,
       })),
     };
