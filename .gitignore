@@ -31,6 +31,7 @@ yarn-error.log
 
 # Miscellaneous
 /.angular/cache
+/.chrome-screenshots
 .sass-cache/
 /connect.lock
 /coverage
