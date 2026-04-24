@@ -249,26 +249,6 @@ export class App {
   ];
   workflowStepItems: MenuItem[] = this.workflowSteps.map((step) => ({ label: step.label }));
 
-  // Fixed positions for an 8-step "route map" (snake layout) rendered as SVG.
-  // Map is drawn as:
-  // Row 1: 1 -> 2 -> 3 -> 4
-  // Then down connector
-  // Row 2: 5 <- 6 <- 7 <- 8
-  readonly workflowMapPositions: Array<{ x: number; y: number }> = [
-    { x: 120, y: 64 }, // 1 Initiated
-    { x: 360, y: 64 }, // 2 Evaluation
-    { x: 600, y: 64 }, // 3 Approval to Implement
-    { x: 840, y: 64 }, // 4 Implementation
-    { x: 120, y: 190 }, // 5 PSSR
-    { x: 360, y: 190 }, // 6 Approval for Start Up
-    { x: 600, y: 190 }, // 7 Ready for Closure
-    { x: 840, y: 190 }, // 8 Closed
-  ];
-
-  // Node visit order for drawing connectors on the map:
-  // 1->2->3->4 then down to 8 then 8->7->6->5 (arrows left on row 2).
-  readonly workflowMapPathOrder: number[] = [0, 1, 2, 3, 7, 6, 5, 4];
-
   private rebuildNavMenu(): void {
     const items: MenuItem[] = [
       {
@@ -356,6 +336,18 @@ export class App {
   @ViewChild('createModalCard') createModalCard?: ElementRef<HTMLElement>;
 
   constructor(private readonly sanitizer: DomSanitizer, private readonly messageService: MessageService, private readonly confirmationService: ConfirmationService) {
+    // Debug hook for local/demo troubleshooting (harmless for internal prototype).
+    (globalThis as unknown as { __mocApp?: unknown }).__mocApp = this;
+    const debugGlobal = globalThis as unknown as { __mocLastError?: unknown; __mocLastRejection?: unknown };
+    if (typeof debugGlobal.__mocLastError === 'undefined') {
+      debugGlobal.__mocLastError = null;
+      globalThis.addEventListener('error', (event) => {
+        debugGlobal.__mocLastError = (event as ErrorEvent).message || String((event as ErrorEvent).error ?? 'Unknown error');
+      });
+      globalThis.addEventListener('unhandledrejection', (event) => {
+        debugGlobal.__mocLastRejection = String((event as PromiseRejectionEvent).reason ?? 'Unhandled rejection');
+      });
+    }
     if (this.currentUser) {
       this.view = 'dashboard';
       this.rebuildNavMenu();
@@ -810,6 +802,16 @@ export class App {
     return 'secondary';
   }
 
+  workflowStepsModel(record: MocRecord): MenuItem[] {
+    return this.workflowSteps.map((step) => {
+      const state = this.workflowStepState(record, step.key);
+      return {
+        label: step.label,
+        styleClass: state === 'Complete' ? 'is-done' : state === 'Current' ? 'is-current' : 'is-upcoming',
+      };
+    });
+  }
+
   workflowNodeClass(record: MocRecord, stepKey: WorkflowState | 'Initiated'): string {
     const state = this.workflowStepState(record, stepKey);
     if (state === 'Complete') return 'is-done';
@@ -854,14 +856,15 @@ export class App {
     return '#cbd5e1';
   }
 
-  routeMapLabelLines(label: string): string[] {
-    // Keep the route map clean: hard-wrap known long labels, otherwise return as-is.
-    const normalized = label.trim();
-    if (normalized.toLowerCase() === 'approval to implement') return ['Approval to', 'Implement'];
-    if (normalized.toLowerCase() === 'approval for start up') return ['Approval for', 'Start Up'];
-    if (normalized.toLowerCase() === 'ready for closure') return ['Ready for', 'Closure'];
-    if (normalized.toLowerCase() === 'implementation') return ['Implementation'];
-    return [normalized];
+  // Route map SVG geometry (fixed single-line map).
+  readonly routeMapY = 50;
+
+  routeMapX(idx: number): number {
+    const count = Math.max(1, this.workflowSteps.length);
+    if (count === 1) return 500;
+    const left = 70;
+    const right = 930;
+    return left + ((right - left) * idx) / (count - 1);
   }
 
   workflowProgressLabel(record: MocRecord): string {
@@ -1898,7 +1901,7 @@ export class App {
     return this.templateItems(this.defaultChecklist(scope), scope);
   }
 
-  private workflowStepIndex(record: MocRecord): number {
+  workflowStepIndex(record: MocRecord): number {
     if (record.workflowState === 'Cancelled') {
       const fallbackStep = [...record.workflowHistory]
         .reverse()
@@ -1950,17 +1953,46 @@ export class App {
   private loadRecords(): MocRecord[] {
     try {
       const saved = JSON.parse(localStorage.getItem(this.storageKey) ?? 'null') as MocRecord[] | null;
-      if (saved?.length) return saved;
+      if (saved?.length) return saved.map((record) => this.normalizeRecord(record));
     } catch {
       // Use seeded data if localStorage is unavailable or malformed.
     }
     const seeded = this.seedRecords();
-    localStorage.setItem(this.storageKey, JSON.stringify(seeded));
-    return seeded;
+    const normalized = seeded.map((record) => this.normalizeRecord(record));
+    localStorage.setItem(this.storageKey, JSON.stringify(normalized));
+    return normalized;
   }
 
   private saveRecords(): void {
-    localStorage.setItem(this.storageKey, JSON.stringify(this.records));
+    localStorage.setItem(this.storageKey, JSON.stringify(this.records.map((record) => this.normalizeRecord(record))));
+  }
+
+  private normalizeRecord(record: MocRecord): MocRecord {
+    // Defensive defaults so older localStorage payloads (or partial dummy records)
+    // can't break detail rendering.
+    const now = new Date().toISOString();
+    const next = record as unknown as Record<string, unknown>;
+
+    if (!Array.isArray(next['disciplines'])) next['disciplines'] = [];
+    if (!Array.isArray(next['evaluatorIds'])) next['evaluatorIds'] = [];
+    if (!Array.isArray(next['evaluations'])) next['evaluations'] = [];
+    if (!Array.isArray(next['pssrChecklist'])) next['pssrChecklist'] = this.makePssrChecklist(false);
+    if (!Array.isArray(next['actionItems'])) next['actionItems'] = [];
+    if (!Array.isArray(next['approvalHistory'])) next['approvalHistory'] = [];
+    if (!Array.isArray(next['workflowHistory'])) next['workflowHistory'] = [];
+
+    if (typeof next['status'] !== 'string') next['status'] = 'Open';
+    if (typeof next['waitingOn'] !== 'string') next['waitingOn'] = '-';
+    if (typeof next['actionFlag'] !== 'string') next['actionFlag'] = '';
+    if (typeof next['createdDate'] !== 'string') next['createdDate'] = now;
+    if (typeof next['lastUpdatedDate'] !== 'string') next['lastUpdatedDate'] = String(next['createdDate'] ?? now);
+    if (typeof next['supportingDocumentName'] !== 'string') next['supportingDocumentName'] = '';
+    if (typeof next['title'] !== 'string') next['title'] = '';
+    if (typeof next['description'] !== 'string') next['description'] = '';
+    if (typeof next['basis'] !== 'string') next['basis'] = '';
+    if (typeof next['implementationDate'] !== 'string') next['implementationDate'] = this.minDate;
+
+    return next as unknown as MocRecord;
   }
 
   private async readFileAsDataUrl(file: File): Promise<string> {

@@ -321,80 +321,68 @@
             </div>
           </div>
 
-          <div class="route-svg-wrap" role="img" aria-label="Workflow route map">
-            <svg class="route-svg" viewBox="0 0 960 240" preserveAspectRatio="xMidYMid meet">
-              <defs>
-                <marker id="arrow-upcoming" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#cbd5e1"></path>
-                </marker>
-                <marker id="arrow-current" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"></path>
-                </marker>
-                <marker id="arrow-done" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a"></path>
-                </marker>
+          <div class="workflow-stepper" aria-label="Workflow stepper">
+            <div class="workflow-legend" aria-label="Legend">
+              <span class="legend-item"><span class="dot done"></span>Complete</span>
+              <span class="legend-item"><span class="dot current"></span>Current</span>
+              <span class="legend-item"><span class="dot upcoming"></span>Upcoming</span>
+            </div>
+            <!-- Route map: single line with fixed nodes and colored connectors. -->
+            <div class="route-map-svg" aria-label="Workflow route map">
+              <svg viewBox="0 0 1000 140" preserveAspectRatio="none" aria-hidden="true">
+                <defs>
+                  <marker id="arrow-done" markerWidth="12" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L12,6 L0,12 z" fill="#16a34a"></path>
+                  </marker>
+                  <marker id="arrow-current" markerWidth="12" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L12,6 L0,12 z" fill="#2563eb"></path>
+                  </marker>
+                  <marker id="arrow-upcoming" markerWidth="12" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L12,6 L0,12 z" fill="#cbd5e1"></path>
+                  </marker>
+                </defs>
 
-                <filter id="nodeShadow" x="-40%" y="-40%" width="180%" height="180%">
-                  <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0f2942" flood-opacity="0.12"></feDropShadow>
-                </filter>
-
-                <filter id="currentGlow" x="-60%" y="-60%" width="220%" height="220%">
-                  <feGaussianBlur stdDeviation="5" result="blur"></feGaussianBlur>
-                  <feColorMatrix in="blur" type="matrix"
-                    values="0 0 0 0 0.145  0 0 0 0 0.388  0 0 0 0 0.922  0 0 0 0.30 0" result="blueGlow"></feColorMatrix>
-                  <feMerge>
-                    <feMergeNode in="blueGlow"></feMergeNode>
-                    <feMergeNode in="SourceGraphic"></feMergeNode>
-                  </feMerge>
-                </filter>
-              </defs>
-
-              <!-- connectors 0..6 (map order) -->
-              <ng-container *ngFor="let entry of workflowMapPathOrder; let i = index; let last = last">
-                <ng-container *ngIf="!last">
-                  <path
-                    [attr.d]="'M ' + workflowMapPositions[workflowMapPathOrder[i]].x + ' ' + workflowMapPositions[workflowMapPathOrder[i]].y + ' L ' + workflowMapPositions[workflowMapPathOrder[i+1]].x + ' ' + workflowMapPositions[workflowMapPathOrder[i+1]].y"
+                <ng-container *ngFor="let step of workflowSteps; let i = index">
+                  <line
+                    *ngIf="i < workflowSteps.length - 1"
+                    [attr.x1]="routeMapX(i)"
+                    [attr.y1]="routeMapY"
+                    [attr.x2]="routeMapX(i + 1)"
+                    [attr.y2]="routeMapY"
                     [attr.stroke]="connectorStroke(selectedMoc, i)"
                     stroke-width="8"
                     stroke-linecap="round"
-                    fill="none"
                     [attr.marker-end]="'url(#' + connectorMarkerId(selectedMoc, i) + ')'"
-                    opacity="0.98"
-                  ></path>
+                  ></line>
                 </ng-container>
-              </ng-container>
 
-              <!-- nodes -->
-              <ng-container *ngFor="let step of workflowSteps; let idx = index">
-                <g [attr.transform]="'translate(' + workflowMapPositions[idx].x + ',' + workflowMapPositions[idx].y + ')'">
+                <ng-container *ngFor="let step of workflowSteps; let i = index">
                   <circle
-                    r="28"
-                    fill="#ffffff"
-                    stroke="rgba(15, 41, 66, 0.12)"
-                    stroke-width="2"
-                    filter="url(#nodeShadow)"
-                  ></circle>
-                  <circle
-                    r="24"
-                    [attr.fill]="mapNodeFill(selectedMoc, idx)"
-                    [attr.stroke]="mapNodeStroke(selectedMoc, idx)"
+                    [attr.cx]="routeMapX(i)"
+                    [attr.cy]="routeMapY"
+                    r="22"
+                    [attr.fill]="mapNodeFill(selectedMoc, i)"
+                    [attr.stroke]="mapNodeStroke(selectedMoc, i)"
                     stroke-width="5"
-                    [attr.filter]="workflowStepState(selectedMoc, step.key) === 'Current' ? 'url(#currentGlow)' : null"
                   ></circle>
-                  <text x="0" y="6" text-anchor="middle" class="route-svg-num">{{ idx + 1 }}</text>
-
-                  <text x="0" y="56" text-anchor="middle" class="route-svg-label">
-                    <ng-container *ngFor="let line of routeMapLabelLines(step.label); let li = index">
-                      <tspan x="0" [attr.dy]="li === 0 ? 0 : 14">{{ line }}</tspan>
-                    </ng-container>
+                  <text [attr.x]="routeMapX(i)" [attr.y]="routeMapY + 6" text-anchor="middle" font-size="18" font-weight="900" fill="#0f172a">
+                    {{ i + 1 }}
                   </text>
+                </ng-container>
+              </svg>
 
-                  <text x="0" y="-40" text-anchor="middle" class="route-svg-state">
-                    {{ workflowStepState(selectedMoc, step.key) }}
-                  </text>
-                </g>
-              </ng-container>
-            </svg>
+              <div class="route-label-grid" role="list">
+                <div
+                  *ngFor="let step of workflowSteps; let i = index"
+                  class="route-label"
+                  role="listitem"
+                  [class.is-done]="workflowStepState(selectedMoc, step.key) === 'Complete'"
+                  [class.is-current]="workflowStepState(selectedMoc, step.key) === 'Current'"
+                >
+                  {{ step.label }}
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 

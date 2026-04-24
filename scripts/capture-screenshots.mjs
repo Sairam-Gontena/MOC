@@ -5,9 +5,9 @@ import { setTimeout as delay } from 'node:timers/promises';
 const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const baseUrl = 'http://127.0.0.1:4300/';
 const screenshotDir = 'ui-screenshots';
-const storageKey = 'mocAngularRbacPrototype.v6';
+const storageKey = 'mocAngularRbacPrototype.v7';
 const sessionKey = 'mocAngularRbacSession.v1';
-const checklistKey = 'mocAngularChecklistTemplates.v1';
+const checklistKey = 'mocAngularChecklistTemplates.v2';
 
 let messageId = 0;
 
@@ -49,8 +49,10 @@ async function main() {
 
     await setState(cdp, 'mech1', seedRecords());
     await navigate(cdp, baseUrl);
+    await dumpMainContentSummary(cdp, 'mech-dashboard-before-click');
     await clickFirstRow(cdp);
     await delay(500);
+    await dumpMainContentSummary(cdp, 'mech-after-click');
     await screenshot(cdp, '04-mechanical-evaluator-detail.png');
     await clickByText(cdp, 'label', 'Action item required');
     await delay(300);
@@ -128,10 +130,16 @@ async function evaluate(cdp, expression) {
   return cdp('Runtime.evaluate', { expression, awaitPromise: true });
 }
 
+async function evaluateValue(cdp, expression) {
+  const response = await cdp('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+  return response?.result?.value;
+}
+
 async function setState(cdp, userId, records) {
   await evaluate(
     cdp,
     `
+      localStorage.clear();
       localStorage.setItem(${JSON.stringify(sessionKey)}, ${JSON.stringify(userId)});
       localStorage.setItem(${JSON.stringify(checklistKey)}, JSON.stringify(${JSON.stringify(defaultTemplates())}));
       localStorage.setItem(${JSON.stringify(storageKey)}, JSON.stringify(${JSON.stringify(records)}));
@@ -152,6 +160,34 @@ async function clickByText(cdp, selector, text) {
 
 async function clickFirstRow(cdp) {
   await evaluate(cdp, "document.querySelector('tbody tr')?.click();");
+}
+
+async function dumpMainContentSummary(cdp, label) {
+  const value = await evaluateValue(
+    cdp,
+    `
+      (() => {
+        const main = document.querySelector('main.content');
+        const text = (main?.innerText || '').trim().replace(/\\s+/g, ' ');
+        const app = globalThis.__mocApp;
+        const view = app?.view;
+        const selected = app?.selectedMoc?.id || null;
+        const lastError = globalThis.__mocLastError || null;
+        const lastRejection = globalThis.__mocLastRejection || null;
+        return {
+          label: ${JSON.stringify(label)},
+          path: location.pathname + location.hash,
+          view,
+          selected,
+          lastError,
+          lastRejection,
+          mainChildren: main ? main.children.length : -1,
+          textPreview: text.slice(0, 180),
+        };
+      })()
+    `,
+  );
+  console.log(JSON.stringify(value));
 }
 
 function now() {

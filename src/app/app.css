@@ -1571,51 +1571,93 @@ textarea {
   color: var(--muted);
 }
 
-/* Subway-style route map (SVG) */
-.route-svg-wrap {
+.workflow-stepper {
   width: 100%;
-  padding: 10px 10px 6px;
+  padding: 12px;
   border: 1px solid #e6eef7;
   border-radius: 14px;
-  background: radial-gradient(1200px 260px at 50% 0%, #ffffff 0%, #f4f9ff 55%, #f2f6fc 100%);
+  background: linear-gradient(180deg, #fbfdff 0%, #f5f9fe 100%);
 }
 
-.route-svg {
-  width: 100%;
-  height: auto;
+.workflow-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-weight: 650;
+  font-size: 13px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+.dot.done {
+  background: #16a34a;
+}
+.dot.current {
+  background: #2563eb;
+}
+.dot.upcoming {
+  background: #cbd5e1;
+}
+
+/* Route map (single line, no 2-row snake) */
+.route-map-svg svg {
   display: block;
+  width: 100%;
+  height: 110px;
 }
 
-.route-svg-num {
-  font-size: 14px;
-  font-weight: 900;
-  fill: #0f172a;
+.route-label-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 8px;
 }
 
-.route-svg-label {
-  font-size: 12px;
+.route-label {
+  text-align: center;
   font-weight: 850;
-  fill: #0f2942;
+  font-size: 12px;
+  line-height: 1.15;
+  color: #0f2942;
+  padding: 6px 6px;
+  border-radius: 10px;
 }
 
-.route-svg-state {
-  font-size: 10px;
-  font-weight: 900;
-  fill: #475569;
-  letter-spacing: 0;
+.route-label.is-done {
+  color: #0b5a27;
+}
+
+.route-label.is-current {
+  color: #0b2f8f;
 }
 
 @media (max-width: 980px) {
-  .route-svg-label {
-    font-size: 11px;
+  .route-map-svg svg {
+    height: 140px;
+  }
+
+  .route-label-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
 /* PrimeNG DataTable sort icon size */
 :host ::ng-deep .p-datatable .p-sortable-column-icon {
-  font-size: 0.7rem;
-  width: 0.8rem;
-  height: 0.8rem;
+  font-size: 0.6rem;
+  width: 0.7rem;
+  height: 0.7rem;
 }
 
 :host ::ng-deep .p-datatable .p-column-header-content {
