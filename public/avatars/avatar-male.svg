@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Male avatar">
+  <defs>
+    <linearGradient id="mShirt" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2f67b4"/>
+      <stop offset="100%" stop-color="#5d8ed1"/>
+    </linearGradient>
+    <linearGradient id="mHair" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1f2e4c"/>
+      <stop offset="100%" stop-color="#0f1b34"/>
+    </linearGradient>
+  </defs>
+  <path d="M17 120c5-21 22-34 47-34s42 13 47 34H17z" fill="url(#mShirt)"/>
+  <ellipse cx="64" cy="60" rx="28" ry="31" fill="#f2c9a5"/>
+  <path d="M37 62c0-24 12-38 27-38s27 14 27 38c-2-8-7-12-12-15l-5 8-10-8c-9 5-16 11-27 15z" fill="url(#mHair)"/>
+  <path d="M49 77c3 8 8 12 15 12s12-4 15-12c-4 3-9 5-15 5s-11-2-15-5z" fill="#704b3b"/>
+  <circle cx="54" cy="62" r="2.5" fill="#2b2b2b"/>
+  <circle cx="74" cy="62" r="2.5" fill="#2b2b2b"/>
+  <path d="M56 73c2.5 2 5.5 3 8 3s5.5-1 8-3" stroke="#b37b62" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg>

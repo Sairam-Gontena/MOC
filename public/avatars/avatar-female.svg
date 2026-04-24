@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Female avatar">
+  <defs>
+    <linearGradient id="fShirt" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c57d6"/>
+      <stop offset="100%" stop-color="#b07fea"/>
+    </linearGradient>
+    <linearGradient id="fHair" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2b3357"/>
+      <stop offset="100%" stop-color="#161f3d"/>
+    </linearGradient>
+  </defs>
+  <path d="M16 120c6-21 23-34 48-34s42 13 48 34H16z" fill="url(#fShirt)"/>
+  <ellipse cx="64" cy="58" rx="27" ry="31" fill="#f3cfb0"/>
+  <path d="M35 60c0-26 13-39 29-39s29 13 29 39c0 20-6 31-12 39H47c-6-8-12-19-12-39z" fill="url(#fHair)"/>
+  <ellipse cx="64" cy="62" rx="23" ry="25" fill="#f3cfb0"/>
+  <circle cx="54" cy="61" r="2.4" fill="#2b2b2b"/>
+  <circle cx="74" cy="61" r="2.4" fill="#2b2b2b"/>
+  <path d="M56 72.5c2.3 1.7 5.2 2.7 8 2.7s5.7-1 8-2.7" stroke="#b07a62" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg>
