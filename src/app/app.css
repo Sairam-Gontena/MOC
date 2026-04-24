@@ -510,6 +510,11 @@ h1 {
   background: #fff;
 }
 
+.table-wrap-grid {
+  border-radius: 0 0 12px 12px;
+  border-top: 0;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -528,8 +533,8 @@ th {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: #f1f5f9;
-  color: #405469;
+  background: #eef2f7;
+  color: #35485d;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -555,6 +560,62 @@ tbody tr:hover {
   color: #075f9f;
   font-size: 12px;
   font-weight: 800;
+}
+
+.pill-status {
+  min-width: 64px;
+  justify-content: center;
+}
+
+.pill-status.is-open {
+  background: #e7f6ed;
+  color: #1a7a53;
+}
+
+.pill-status.is-closed {
+  background: #eef2f8;
+  color: #5a6d84;
+}
+
+.pill-muted {
+  background: #edf1f7;
+  color: #3f566f;
+}
+
+.grid-toolbar {
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px 12px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: #f7f9fc;
+}
+
+.grid-toolbar label {
+  display: grid;
+  gap: 5px;
+  color: #334b63;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.grid-toolbar label.wide {
+  min-width: 0;
+}
+
+.grid-toolbar select,
+.grid-toolbar input {
+  min-height: 36px;
+  border-radius: 8px;
+}
+
+.grid-count {
+  color: #5f738a;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .status.done {
@@ -1348,6 +1409,10 @@ td input {
   .readonly-grid,
   .admin-grid,
   .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-toolbar {
     grid-template-columns: 1fr;
   }
 

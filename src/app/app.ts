@@ -206,6 +206,8 @@ export class App {
   showCreateModal = false;
   showProfileModal = false;
   showPreviewModal = false;
+  mocRowsLimit = 100;
+  mocFilterText = '';
   currentUser: DemoUser | null = this.loadSession();
   selectedMoc: MocRecord | null = null;
   profileForm: UserProfile | null = null;
@@ -301,6 +303,31 @@ export class App {
 
   get closedMocs(): number {
     return this.visibleRecords.filter((record) => record.status === 'Closed').length;
+  }
+
+  get filteredVisibleRecords(): MocRecord[] {
+    const query = this.mocFilterText.trim().toLowerCase();
+    if (!query) return this.visibleRecords;
+    return this.visibleRecords.filter((record) => {
+      const owner = this.userName(record.ownerId).toLowerCase();
+      const assigned = this.currentAssignedTo(record).toLowerCase();
+      const waitingOn = this.waitingOnFor(record).toLowerCase();
+      const actionFlag = (record.actionFlag || '').toLowerCase();
+      return (
+        record.id.toLowerCase().includes(query) ||
+        record.title.toLowerCase().includes(query) ||
+        record.workflowState.toLowerCase().includes(query) ||
+        record.status.toLowerCase().includes(query) ||
+        owner.includes(query) ||
+        assigned.includes(query) ||
+        waitingOn.includes(query) ||
+        actionFlag.includes(query)
+      );
+    });
+  }
+
+  get dashboardRecords(): MocRecord[] {
+    return this.filteredVisibleRecords.slice(0, this.mocRowsLimit);
   }
 
   get minDate(): string {
@@ -1258,6 +1285,7 @@ export class App {
 
   resetDummyData(): void {
     this.records = this.seedRecords();
+    this.mocFilterText = '';
     this.saveRecords();
     this.openDashboard();
   }
