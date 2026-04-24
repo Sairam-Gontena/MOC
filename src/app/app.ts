@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, HostListener, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 type View = 'login' | 'dashboard' | 'detail' | 'admin' | 'actions';
 type UserRole = 'Owner' | 'Evaluator' | 'Manager' | 'Admin';
@@ -140,6 +141,28 @@ interface FileAttachment {
   mimeType?: string;
 }
 
+interface UserProfile {
+  displayName: string;
+  email: string;
+  department: string;
+  phone: string;
+  location: string;
+  timezone: string;
+}
+
+interface ProfilePasswordForm {
+  current: string;
+  next: string;
+  confirm: string;
+}
+
+interface DocumentPreview {
+  title: string;
+  fileName: string;
+  dataUrl: string;
+  mimeType?: string;
+}
+
 @Component({
   selector: 'app-root',
   imports: [CommonModule, FormsModule],
@@ -150,6 +173,8 @@ export class App {
   readonly storageKey = 'mocAngularRbacPrototype.v7';
   readonly checklistKey = 'mocAngularChecklistTemplates.v2';
   readonly sessionKey = 'mocAngularRbacSession.v1';
+  readonly profileKey = 'mocAngularUserProfiles.v1';
+  readonly passwordKey = 'mocAngularUserPasswords.v1';
   readonly disciplineOptions = ['Mechanical', 'Process', 'Electrical', 'Operations', 'HSE', 'Instrumentation', 'Environmental'];
   readonly workflowSteps: Array<{ key: WorkflowState | 'Initiated'; label: string }> = [
     { key: 'Initiated', label: 'Initiated' },
@@ -179,8 +204,17 @@ export class App {
   loginPassword = '';
   loginError = '';
   showCreateModal = false;
+  showProfileModal = false;
+  showPreviewModal = false;
   currentUser: DemoUser | null = this.loadSession();
   selectedMoc: MocRecord | null = null;
+  profileForm: UserProfile | null = null;
+  passwordForm: ProfilePasswordForm = this.blankPasswordForm();
+  profileStatus = '';
+  profileError = '';
+  previewDocument: DocumentPreview | null = null;
+  previewResourceUrl: SafeResourceUrl | null = null;
+  previewTextContent = '';
   submitAttempted = false;
   isSubmitting = false;
   form: InitiationForm = this.blankForm();
@@ -193,10 +227,12 @@ export class App {
   startupRejectionComment = '';
   cancelComment = '';
   reworkNotice = '';
+  userProfiles: Record<string, UserProfile> = this.loadUserProfiles();
+  userPasswords: Record<string, string> = this.loadUserPasswords();
   private lastFocusedElement: HTMLElement | null = null;
   @ViewChild('createModalCard') createModalCard?: ElementRef<HTMLElement>;
 
-  constructor() {
+  constructor(private readonly sanitizer: DomSanitizer) {
     if (this.currentUser) {
       this.view = 'dashboard';
     }
@@ -275,6 +311,12 @@ export class App {
     return this.currentUser ? `${this.currentUser.role}${this.currentUser.discipline ? ` - ${this.currentUser.discipline}` : ''}` : 'Not signed in';
   }
 
+  get currentDisplayName(): string {
+    if (!this.currentUser) return '';
+    const profile = this.userProfiles[this.currentUser.id];
+    return profile?.displayName?.trim() || this.currentUser.name;
+  }
+
   loginWithPassword(): void {
     const username = this.loginUsername.trim().toLowerCase();
     const user = this.users.find((entry) => entry.name.toLowerCase() === username);
@@ -282,7 +324,8 @@ export class App {
       this.loginError = 'Invalid username.';
       return;
     }
-    if (this.loginPassword !== this.demoPassword) {
+    const expectedPassword = this.userPasswords[user.id] ?? this.demoPassword;
+    if (this.loginPassword !== expectedPassword) {
       this.loginError = 'Invalid password.';
       return;
     }
@@ -312,6 +355,11 @@ export class App {
     this.currentUser = null;
     this.selectedMoc = null;
     this.showCreateModal = false;
+    this.showProfileModal = false;
+    this.showPreviewModal = false;
+    this.previewDocument = null;
+    this.previewResourceUrl = null;
+    this.previewTextContent = '';
     this.loginError = '';
     this.loginPassword = '';
     this.view = 'login';
@@ -322,6 +370,79 @@ export class App {
     this.selectedMoc = null;
     this.submitAttempted = false;
     this.showCreateModal = false;
+  }
+
+  openProfileModal(): void {
+    if (!this.currentUser) return;
+    this.profileForm = { ...(this.userProfiles[this.currentUser.id] ?? this.defaultProfile(this.currentUser)) };
+    this.passwordForm = this.blankPasswordForm();
+    this.profileStatus = '';
+    this.profileError = '';
+    this.showProfileModal = true;
+  }
+
+  closeProfileModal(): void {
+    this.showProfileModal = false;
+    this.profileStatus = '';
+    this.profileError = '';
+    this.passwordForm = this.blankPasswordForm();
+  }
+
+  saveProfile(): void {
+    if (!this.currentUser || !this.profileForm) return;
+    const profile = {
+      ...this.profileForm,
+      displayName: this.profileForm.displayName.trim() || this.currentUser.name,
+      email: this.profileForm.email.trim(),
+      department: this.profileForm.department.trim(),
+      phone: this.profileForm.phone.trim(),
+      location: this.profileForm.location.trim(),
+      timezone: this.profileForm.timezone.trim(),
+    };
+    if (profile.email && !profile.email.includes('@')) {
+      this.profileError = 'Enter a valid email address.';
+      this.profileStatus = '';
+      return;
+    }
+    this.userProfiles[this.currentUser.id] = profile;
+    this.saveUserProfiles();
+    this.profileStatus = 'Profile saved.';
+    this.profileError = '';
+  }
+
+  updatePassword(): void {
+    if (!this.currentUser) return;
+    const current = this.passwordForm.current.trim();
+    const next = this.passwordForm.next.trim();
+    const confirm = this.passwordForm.confirm.trim();
+    const currentPassword = this.userPasswords[this.currentUser.id] ?? this.demoPassword;
+
+    if (!current || !next || !confirm) {
+      this.profileError = 'Enter current, new, and confirm password fields.';
+      this.profileStatus = '';
+      return;
+    }
+    if (current !== currentPassword) {
+      this.profileError = 'Current password is incorrect.';
+      this.profileStatus = '';
+      return;
+    }
+    if (next.length < 6) {
+      this.profileError = 'New password must be at least 6 characters.';
+      this.profileStatus = '';
+      return;
+    }
+    if (next !== confirm) {
+      this.profileError = 'New password and confirm password do not match.';
+      this.profileStatus = '';
+      return;
+    }
+
+    this.userPasswords[this.currentUser.id] = next;
+    this.saveUserPasswords();
+    this.passwordForm = this.blankPasswordForm();
+    this.profileStatus = 'Password updated successfully.';
+    this.profileError = '';
   }
 
   openActionBoard(): void {
@@ -375,7 +496,15 @@ export class App {
 
   @HostListener('document:keydown.escape')
   onEscapePressed(): void {
-    if (this.showCreateModal) this.closeCreateModal();
+    if (this.showCreateModal) {
+      this.closeCreateModal();
+      return;
+    }
+    if (this.showPreviewModal) {
+      this.closePreviewModal();
+      return;
+    }
+    if (this.showProfileModal) this.closeProfileModal();
   }
 
   openAdmin(): void {
@@ -1028,13 +1157,35 @@ export class App {
   }
 
   openSupportingDocument(record: MocRecord): void {
-    if (!record.supportingDocumentDataUrl) return;
-    this.downloadDataUrl(record.supportingDocumentDataUrl, record.supportingDocumentName);
+    if (!record.supportingDocumentDataUrl || !record.supportingDocumentName) return;
+    this.openDocumentPreview('Supporting Document', record.supportingDocumentName, record.supportingDocumentDataUrl, record.supportingDocumentMimeType);
   }
 
   openActionEvidence(item: ActionItem): void {
     if (!item.evidenceDataUrl || !item.evidenceFileName) return;
-    this.downloadDataUrl(item.evidenceDataUrl, item.evidenceFileName);
+    this.openDocumentPreview('Action Evidence', item.evidenceFileName, item.evidenceDataUrl, item.evidenceMimeType);
+  }
+
+  closePreviewModal(): void {
+    this.showPreviewModal = false;
+    this.previewDocument = null;
+    this.previewResourceUrl = null;
+    this.previewTextContent = '';
+  }
+
+  previewType(): 'pdf' | 'image' | 'text' | 'unsupported' {
+    if (!this.previewDocument) return 'unsupported';
+    const normalizedMime = this.documentMimeType(this.previewDocument.dataUrl, this.previewDocument.mimeType);
+    const fileName = this.previewDocument.fileName.toLowerCase();
+    if (normalizedMime.startsWith('image/') || /\.(png|jpg|jpeg|gif|bmp|webp|svg)$/.test(fileName)) return 'image';
+    if (normalizedMime === 'application/pdf' || fileName.endsWith('.pdf')) return 'pdf';
+    if (normalizedMime.startsWith('text/') || /\.(txt|md|csv|json|xml|log)$/.test(fileName)) return 'text';
+    return 'unsupported';
+  }
+
+  downloadPreviewDocument(): void {
+    if (!this.previewDocument) return;
+    this.downloadDataUrl(this.previewDocument.dataUrl, this.previewDocument.fileName);
   }
 
   saveReworkEdits(record: MocRecord): void {
@@ -1546,6 +1697,89 @@ export class App {
     link.target = '_blank';
     link.rel = 'noopener';
     link.click();
+  }
+
+  private blankPasswordForm(): ProfilePasswordForm {
+    return { current: '', next: '', confirm: '' };
+  }
+
+  private defaultProfile(user: DemoUser): UserProfile {
+    return {
+      displayName: user.name,
+      email: `${user.name.toLowerCase()}@chevron.com`,
+      department: user.discipline ? `${user.discipline} Engineering` : `${user.role} Team`,
+      phone: '',
+      location: 'Houston',
+      timezone: 'America/Chicago',
+    };
+  }
+
+  private loadUserProfiles(): Record<string, UserProfile> {
+    const defaults: Record<string, UserProfile> = Object.fromEntries(this.users.map((user) => [user.id, this.defaultProfile(user)]));
+    try {
+      const raw = JSON.parse(localStorage.getItem(this.profileKey) ?? 'null') as Record<string, UserProfile> | null;
+      if (raw) {
+        const merged: Record<string, UserProfile> = { ...defaults };
+        for (const user of this.users) {
+          if (raw[user.id]) merged[user.id] = { ...defaults[user.id], ...raw[user.id] };
+        }
+        return merged;
+      }
+    } catch {
+      // Fall back to defaults.
+    }
+    localStorage.setItem(this.profileKey, JSON.stringify(defaults));
+    return defaults;
+  }
+
+  private saveUserProfiles(): void {
+    localStorage.setItem(this.profileKey, JSON.stringify(this.userProfiles));
+  }
+
+  private loadUserPasswords(): Record<string, string> {
+    const defaults: Record<string, string> = Object.fromEntries(this.users.map((user) => [user.id, this.demoPassword]));
+    try {
+      const raw = JSON.parse(localStorage.getItem(this.passwordKey) ?? 'null') as Record<string, string> | null;
+      if (!raw) return defaults;
+      const merged = { ...defaults };
+      for (const user of this.users) {
+        const value = String(raw[user.id] ?? '').trim();
+        if (value) merged[user.id] = value;
+      }
+      return merged;
+    } catch {
+      return defaults;
+    }
+  }
+
+  private saveUserPasswords(): void {
+    localStorage.setItem(this.passwordKey, JSON.stringify(this.userPasswords));
+  }
+
+  private openDocumentPreview(title: string, fileName: string, dataUrl: string, mimeType?: string): void {
+    this.previewDocument = { title, fileName, dataUrl, mimeType };
+    const type = this.previewType();
+    this.previewResourceUrl = type === 'pdf' ? this.sanitizer.bypassSecurityTrustResourceUrl(dataUrl) : null;
+    this.previewTextContent = type === 'text' ? this.decodeDataUrlText(dataUrl) : '';
+    this.showPreviewModal = true;
+  }
+
+  private documentMimeType(dataUrl: string, fallback?: string): string {
+    const match = dataUrl.match(/^data:([^;,]+)[;,]/i);
+    return (fallback || match?.[1] || '').toLowerCase();
+  }
+
+  private decodeDataUrlText(dataUrl: string): string {
+    const parts = dataUrl.split(',', 2);
+    if (parts.length < 2) return '';
+    try {
+      const header = parts[0].toLowerCase();
+      const body = parts[1];
+      if (header.includes(';base64')) return atob(body);
+      return decodeURIComponent(body);
+    } catch {
+      return 'Preview unavailable for this text file.';
+    }
   }
 
   private seedRecords(): MocRecord[] {
