@@ -53,11 +53,36 @@
 
   <main class="app-shell">
     <nav class="sidebar" aria-label="Prototype navigation">
-      <button type="button" [class.active]="view === 'dashboard'" (click)="openDashboard()">Dashboard</button>
-      <button type="button" [class.active]="view === 'actions'" (click)="openActionBoard()">My Action Items</button>
-      <button type="button" [disabled]="!canInitiate()" [class.active]="showCreateModal" (click)="openCreate()">+ Create New MOC</button>
-      <button type="button" *ngIf="currentUser.role === 'Admin'" [class.active]="view === 'admin'" (click)="openAdmin()">Checklist Admin</button>
-      <button type="button" class="muted-button">Help</button>
+      <button type="button" [class.active]="view === 'dashboard'" (click)="openDashboard()">
+        <span class="btn-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+        </span>
+        <span>Dashboard</span>
+      </button>
+      <button type="button" [class.active]="view === 'actions'" (click)="openActionBoard()">
+        <span class="btn-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M8 6h13v2H8zM8 11h13v2H8zM8 16h13v2H8zM3 6h3v3H3zM3 11h3v3H3zM3 16h3v3H3z"/></svg>
+        </span>
+        <span>My Action Items</span>
+      </button>
+      <button type="button" [disabled]="!canInitiate()" [class.active]="showCreateModal" (click)="openCreate()">
+        <span class="btn-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z"/></svg>
+        </span>
+        <span>Create New MOC</span>
+      </button>
+      <button type="button" *ngIf="currentUser.role === 'Admin'" [class.active]="view === 'admin'" (click)="openAdmin()">
+        <span class="btn-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M19.4 13a7.8 7.8 0 0 0 .05-1 7.8 7.8 0 0 0-.05-1l2.08-1.63-1.98-3.42-2.5 1a7.66 7.66 0 0 0-1.73-1l-.38-2.65h-3.9l-.38 2.65a7.66 7.66 0 0 0-1.73 1l-2.5-1-1.98 3.42L4.6 11a7.8 7.8 0 0 0-.05 1c0 .34.02.67.06 1l-2.1 1.63 1.98 3.42 2.52-1a7.55 7.55 0 0 0 1.72.99l.38 2.66h3.9l.38-2.66a7.55 7.55 0 0 0 1.72-.99l2.52 1 1.98-3.42zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z"/></svg>
+        </span>
+        <span>Checklist Admin</span>
+      </button>
+      <button type="button" class="muted-button">
+        <span class="btn-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 17h-2v-2h2Zm2.1-7.2-.9.9A2.8 2.8 0 0 0 13 15h-2v-.5a3.5 3.5 0 0 1 1-2.5l1.2-1.2a1.5 1.5 0 1 0-2.6-1.1H8.6a3.5 3.5 0 1 1 6.5 2.1Z"/></svg>
+        </span>
+        <span>Help</span>
+      </button>
     </nav>
 
     <section class="workspace">
@@ -97,25 +122,7 @@
           </article>
         </div>
 
-        <section class="panel" *ngIf="routedUpdates.length > 0">
-          <div class="section-head">
-            <div>
-              <h3>Assigned Updates</h3>
-              <p>In-app notification substitute: recent workflow events routed to you.</p>
-            </div>
-          </div>
-          <ol class="timeline compact-timeline">
-            <li *ngFor="let update of routedUpdates">
-              <div>
-                <strong>{{ update.record.id }} - {{ update.record.title }}</strong>
-                <span>{{ update.event.at | date: 'medium' }}</span>
-              </div>
-              <p>{{ update.event.note }}</p>
-            </li>
-          </ol>
-        </section>
-
-        <section class="panel">
+        <section class="panel primary-panel">
           <div class="section-head">
             <h3>MOC List - Role Visibility</h3>
             <button type="button" class="secondary danger" (click)="resetDummyData()">Reset Dummy Data</button>
@@ -151,6 +158,33 @@
                   <td>{{ waitingOnFor(record) }}</td>
                   <td>{{ currentAssignedTo(record) }}</td>
                   <td>{{ record.actionFlag || '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel updates-panel compact-updates-panel" *ngIf="routedUpdates.length > 0">
+          <div class="section-head">
+            <div>
+              <h3>Assigned Updates</h3>
+              <p>Recent routing events assigned to you.</p>
+            </div>
+          </div>
+          <div class="updates-compact-wrap">
+            <table class="updates-compact-table">
+              <thead>
+                <tr>
+                  <th>MOC</th>
+                  <th>Update</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let update of routedUpdates">
+                  <td>{{ update.record.id }}</td>
+                  <td [title]="update.event.note">{{ update.event.note }}</td>
+                  <td>{{ update.event.at | date: 'MMM d, h:mm a' }}</td>
                 </tr>
               </tbody>
             </table>
@@ -762,7 +796,7 @@
         <h2 id="create-moc-title">Initiate New MOC</h2>
         <button type="button" class="secondary small" aria-label="Close create MOC dialog" (click)="closeCreateModal()">Close</button>
       </div>
-      <form class="form-panel modal-form" (ngSubmit)="submitMoc()" novalidate>
+      <form class="form-panel modal-form modal-two-col" (ngSubmit)="submitMoc()" novalidate>
         <label>
           Title <span>*</span>
           <input name="title" [(ngModel)]="form.title" placeholder="Example: Replace gasket on Pump P-101" />
@@ -770,18 +804,25 @@
         </label>
 
         <label>
+          Date Change Needs to be Implemented By <span>*</span>
+          <input type="date" name="implementationDate" [min]="minDate" [(ngModel)]="form.implementationDate" />
+          <small class="error" *ngIf="showError('implementationDate')">Implementation date is required.</small>
+          <small class="error" *ngIf="submitAttempted && isPastDate()">Date cannot be in the past.</small>
+        </label>
+
+        <label class="wide">
           Description <span>*</span>
-          <textarea name="description" [(ngModel)]="form.description" placeholder="Describe the proposed change" rows="3"></textarea>
+          <textarea name="description" [(ngModel)]="form.description" placeholder="Describe the proposed change" rows="2"></textarea>
           <small class="error" *ngIf="showError('description')">Description is required.</small>
         </label>
 
-        <label>
+        <label class="wide">
           Basis / Justification <span>*</span>
-          <textarea name="basis" [(ngModel)]="form.basis" placeholder="Explain reason for the change" rows="3"></textarea>
+          <textarea name="basis" [(ngModel)]="form.basis" placeholder="Explain reason for the change" rows="2"></textarea>
           <small class="error" *ngIf="showError('basis')">Basis / Justification is required.</small>
         </label>
 
-        <div class="field-block">
+        <div class="field-block wide">
           <label class="group-label">Disciplines Involved <span>*</span></label>
           <div class="checkbox-dropdown">
             <label *ngFor="let discipline of disciplineOptions" class="checkline">
@@ -796,18 +837,11 @@
           <small class="error" *ngIf="showError('disciplines')">At least one discipline is required.</small>
         </div>
 
-        <label>
+        <label class="wide">
           Supporting Document <span>*</span>
           <input type="file" name="supportingDocument" (change)="onFileSelected($event)" />
           <strong class="file-name" *ngIf="form.supportingDocumentName">{{ form.supportingDocumentName }}</strong>
           <small class="error" *ngIf="showError('supportingDocumentName')">Supporting document is required.</small>
-        </label>
-
-        <label>
-          Date Change Needs to be Implemented By <span>*</span>
-          <input type="date" name="implementationDate" [min]="minDate" [(ngModel)]="form.implementationDate" />
-          <small class="error" *ngIf="showError('implementationDate')">Implementation date is required.</small>
-          <small class="error" *ngIf="submitAttempted && isPastDate()">Date cannot be in the past.</small>
         </label>
 
         <footer class="form-actions">
