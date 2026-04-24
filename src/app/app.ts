@@ -4,17 +4,27 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { AvatarModule } from 'primeng/avatar';
 import { ToastModule } from 'primeng/toast';
-import { MessageService, ConfirmationService } from 'primeng/api';
+import { MessageService, ConfirmationService, MenuItem } from 'primeng/api';
 import { TableModule } from 'primeng/table';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TooltipModule } from 'primeng/tooltip';
 import { AccordionModule } from 'primeng/accordion';
 import { BadgeModule } from 'primeng/badge';
 import { TimelineModule } from 'primeng/timeline';
+import { MenubarModule } from 'primeng/menubar';
+import { PanelMenuModule } from 'primeng/panelmenu';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { TagModule } from 'primeng/tag';
+import { StepsModule } from 'primeng/steps';
+import { DialogModule } from 'primeng/dialog';
+import { MenuModule } from 'primeng/menu';
+import { InputTextModule } from 'primeng/inputtext';
+import { CheckboxModule } from 'primeng/checkbox';
+import { DividerModule } from 'primeng/divider';
 
 type View = 'login' | 'dashboard' | 'detail' | 'admin' | 'actions';
 type UserRole = 'Owner' | 'Evaluator' | 'Manager' | 'Admin';
-type Gender = 'Male' | 'Female';
 type WorkflowState =
   | 'Evaluation'
   | 'Approval to Implement'
@@ -153,7 +163,6 @@ interface FileAttachment {
 
 interface UserProfile {
   displayName: string;
-  gender: Gender;
   email: string;
   department: string;
   phone: string;
@@ -176,7 +185,29 @@ interface DocumentPreview {
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, FormsModule, AvatarModule, ToastModule, TableModule, ConfirmDialogModule, TooltipModule, AccordionModule, BadgeModule, TimelineModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    AvatarModule,
+    ToastModule,
+    TableModule,
+    ConfirmDialogModule,
+    TooltipModule,
+    AccordionModule,
+    BadgeModule,
+    TimelineModule,
+    MenubarModule,
+    PanelMenuModule,
+    ButtonModule,
+    CardModule,
+    TagModule,
+    StepsModule,
+    DialogModule,
+    MenuModule,
+    InputTextModule,
+    CheckboxModule,
+    DividerModule,
+  ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './app.html',
   styleUrl: './app.css',
@@ -209,23 +240,76 @@ export class App {
     { id: 'manager1', name: 'Morgan', role: 'Manager' },
     { id: 'admin1', name: 'Ada', role: 'Admin' },
   ];
-  readonly genderOptions: Gender[] = ['Male', 'Female'];
-  readonly userGenderDefaults: Record<string, Gender> = {
-    owner1: 'Female',
-    owner2: 'Male',
-    mech1: 'Male',
-    process1: 'Female',
-    env1: 'Male',
-    hse1: 'Female',
-    ops1: 'Male',
-    manager1: 'Male',
-    admin1: 'Female',
-  };
-  readonly genderAvatarMap: Record<Gender, string> = {
-    Male: 'avatars/avatar-male.jpg',
-    Female: 'avatars/avatar-female.jpg',
-  };
+
+  navMenuItems: MenuItem[] = [];
+  userMenuItems: MenuItem[] = [
+    { label: 'Profile', icon: 'pi pi-user', command: () => this.openProfileModal() },
+    { separator: true },
+    { label: 'Logout', icon: 'pi pi-sign-out', command: () => this.logout() },
+  ];
+  workflowStepItems: MenuItem[] = this.workflowSteps.map((step) => ({ label: step.label }));
+
+  // Fixed positions for an 8-step "route map" (snake layout) rendered as SVG.
+  // Order matches workflowSteps: 1->2->3->4 then down to 5->6->7->8.
+  readonly workflowMapPositions: Array<{ x: number; y: number }> = [
+    { x: 120, y: 64 }, // 1 Initiated
+    { x: 360, y: 64 }, // 2 Evaluation
+    { x: 600, y: 64 }, // 3 Approval to Implement
+    { x: 840, y: 64 }, // 4 Implementation
+    { x: 840, y: 190 }, // 5 PSSR (down)
+    { x: 600, y: 190 }, // 6 Approval for Start Up (left)
+    { x: 360, y: 190 }, // 7 Ready for Closure (left)
+    { x: 120, y: 190 }, // 8 Closed (left)
+  ];
+
+  private rebuildNavMenu(): void {
+    const items: MenuItem[] = [
+      {
+        label: 'Dashboard',
+        icon: 'pi pi-home',
+        command: () => this.openDashboard(),
+      },
+      {
+        label: 'My Action Items',
+        icon: 'pi pi-list-check',
+        command: () => this.openActionBoard(),
+        badge: this.myActionItems.length ? String(this.myActionItems.length) : undefined,
+        badgeStyleClass: this.myActionItems.length ? 'p-badge-info' : undefined,
+      },
+      {
+        label: 'Create New MOC',
+        icon: 'pi pi-plus',
+        disabled: !this.canInitiate(),
+        command: () => this.openCreate(),
+      },
+    ];
+
+    if (this.currentUser?.role === 'Admin') {
+      items.push({
+        label: 'Checklist Admin',
+        icon: 'pi pi-cog',
+        command: () => this.openAdmin(),
+      });
+    }
+
+    items.push({
+      label: 'Help',
+      icon: 'pi pi-question-circle',
+      disabled: true,
+    });
+
+    this.navMenuItems = items;
+  }
+
   readonly demoPassword = 'demo123';
+
+  avatarInitials(name: string): string {
+    const trimmed = (name ?? '').trim();
+    if (!trimmed) return '?';
+    const parts = trimmed.split(/\s+/).filter(Boolean);
+    const initials = (parts[0]?.[0] ?? '') + (parts.length > 1 ? parts.at(-1)?.[0] ?? '' : '');
+    return initials.toUpperCase().slice(0, 2) || trimmed[0].toUpperCase();
+  }
 
   view: View = 'login';
   loginUsername = '';
@@ -267,6 +351,7 @@ export class App {
   constructor(private readonly sanitizer: DomSanitizer, private readonly messageService: MessageService, private readonly confirmationService: ConfirmationService) {
     if (this.currentUser) {
       this.view = 'dashboard';
+      this.rebuildNavMenu();
     }
   }
 
@@ -375,9 +460,7 @@ export class App {
   }
 
   get currentAvatarSrc(): string {
-    if (!this.currentUser) return this.genderAvatarMap.Male;
-    const gender = this.userProfiles[this.currentUser.id]?.gender ?? this.defaultGender(this.currentUser.id);
-    return this.avatarForGender(gender);
+    return '';
   }
 
   loginWithPassword(): void {
@@ -396,6 +479,7 @@ export class App {
     this.currentUser = user;
     localStorage.setItem(this.sessionKey, this.currentUser.id);
     this.loginPassword = '';
+    this.rebuildNavMenu();
     this.openDashboard();
   }
 
@@ -410,6 +494,7 @@ export class App {
     this.currentUser = user;
     localStorage.setItem(this.sessionKey, user.id);
     this.loginPassword = '';
+    this.rebuildNavMenu();
     this.openDashboard();
   }
 
@@ -426,6 +511,7 @@ export class App {
     this.loginError = '';
     this.loginPassword = '';
     this.view = 'login';
+    this.navMenuItems = [];
   }
 
   openDashboard(): void {
@@ -434,6 +520,7 @@ export class App {
     this.submitAttempted = false;
     this.showCreateModal = false;
     window.scrollTo({ top: 0 });
+    this.rebuildNavMenu();
   }
 
   openProfileModal(): void {
@@ -457,7 +544,6 @@ export class App {
     const profile = {
       ...this.profileForm,
       displayName: this.profileForm.displayName.trim() || this.currentUser.name,
-      gender: this.normalizeGender(this.profileForm.gender, this.currentUser.id),
       email: this.profileForm.email.trim(),
       department: this.profileForm.department.trim(),
       phone: this.profileForm.phone.trim(),
@@ -476,7 +562,7 @@ export class App {
   }
 
   profileAvatarSrc(profile: UserProfile): string {
-    return this.avatarForGender(this.normalizeGender(profile.gender, this.currentUser?.id));
+    return '';
   }
 
   updatePassword(): void {
@@ -711,6 +797,54 @@ export class App {
     return 'Upcoming';
   }
 
+  workflowTagSeverity(state: 'Complete' | 'Current' | 'Upcoming'): 'success' | 'info' | 'secondary' {
+    if (state === 'Complete') return 'success';
+    if (state === 'Current') return 'info';
+    return 'secondary';
+  }
+
+  workflowNodeClass(record: MocRecord, stepKey: WorkflowState | 'Initiated'): string {
+    const state = this.workflowStepState(record, stepKey);
+    if (state === 'Complete') return 'is-done';
+    if (state === 'Current') return 'is-current';
+    return 'is-upcoming';
+  }
+
+  connectorState(record: MocRecord, fromIndex: number): 'done' | 'current' | 'upcoming' {
+    const currentIndex = this.workflowStepIndex(record);
+    if (fromIndex < currentIndex - 1) return 'done';
+    if (fromIndex === currentIndex - 1) return 'current';
+    return 'upcoming';
+  }
+
+  connectorStroke(record: MocRecord, fromIndex: number): string {
+    const state = this.connectorState(record, fromIndex);
+    if (state === 'done') return '#16a34a';
+    if (state === 'current') return '#2563eb';
+    return '#cbd5e1';
+  }
+
+  connectorMarkerId(record: MocRecord, fromIndex: number): string {
+    const state = this.connectorState(record, fromIndex);
+    if (state === 'done') return 'arrow-done';
+    if (state === 'current') return 'arrow-current';
+    return 'arrow-upcoming';
+  }
+
+  mapNodeFill(record: MocRecord, idx: number): string {
+    const state = this.workflowStepState(record, this.workflowSteps[idx]?.key ?? 'Evaluation');
+    if (state === 'Complete') return '#dcfce7';
+    if (state === 'Current') return '#dbeafe';
+    return '#f1f5f9';
+  }
+
+  mapNodeStroke(record: MocRecord, idx: number): string {
+    const state = this.workflowStepState(record, this.workflowSteps[idx]?.key ?? 'Evaluation');
+    if (state === 'Complete') return '#16a34a';
+    if (state === 'Current') return '#2563eb';
+    return '#cbd5e1';
+  }
+
   workflowProgressLabel(record: MocRecord): string {
     const index = this.workflowStepIndex(record);
     const step = this.workflowSteps[index] ?? this.workflowSteps[0];
@@ -747,6 +881,18 @@ export class App {
 
   routeEvents(record: MocRecord): WorkflowEvent[] {
     return [...record.workflowHistory].sort((a, b) => b.at.localeCompare(a.at));
+  }
+
+  routingRows(record: MocRecord): Array<{ n: number; step: string; summary: string; by: string; assignedTo: string; at: string }> {
+    const events = [...record.workflowHistory].sort((a, b) => a.at.localeCompare(b.at));
+    return events.map((event, idx) => ({
+      n: idx + 1,
+      step: event.step,
+      summary: event.note,
+      by: this.userName(event.byUserId),
+      assignedTo: event.assignedToUserIds.length ? this.userList(event.assignedToUserIds) : '-',
+      at: event.at,
+    }));
   }
 
   trackByEventId(_index: number, event: WorkflowEvent): string {
@@ -1823,7 +1969,6 @@ export class App {
   private defaultProfile(user: DemoUser): UserProfile {
     return {
       displayName: user.name,
-      gender: this.defaultGender(user.id),
       email: `${user.name.toLowerCase()}@chevron.com`,
       department: user.discipline ? `${user.discipline} Engineering` : `${user.role} Team`,
       phone: '',
@@ -1835,15 +1980,12 @@ export class App {
   private loadUserProfiles(): Record<string, UserProfile> {
     const defaults: Record<string, UserProfile> = Object.fromEntries(this.users.map((user) => [user.id, this.defaultProfile(user)]));
     try {
-      const raw = JSON.parse(localStorage.getItem(this.profileKey) ?? 'null') as
-        | Record<string, Partial<UserProfile> & { avatarKey?: string; sex?: string; gender?: string }>
-        | null;
+      const raw = JSON.parse(localStorage.getItem(this.profileKey) ?? 'null') as Record<string, Partial<UserProfile>> | null;
       if (raw) {
         const merged: Record<string, UserProfile> = { ...defaults };
         for (const user of this.users) {
           if (raw[user.id]) {
             const next = { ...defaults[user.id], ...raw[user.id] };
-            next.gender = this.normalizeGender(next.gender ?? raw[user.id].sex, user.id);
             merged[user.id] = next;
           }
         }
@@ -1858,21 +2000,6 @@ export class App {
 
   private saveUserProfiles(): void {
     localStorage.setItem(this.profileKey, JSON.stringify(this.userProfiles));
-  }
-
-  private defaultGender(userId: string): Gender {
-    return this.userGenderDefaults[userId] ?? 'Male';
-  }
-
-  private normalizeGender(gender: string | undefined, userId?: string): Gender {
-    const normalized = String(gender ?? '').trim().toLowerCase();
-    if (normalized === 'male') return 'Male';
-    if (normalized === 'female') return 'Female';
-    return userId ? this.defaultGender(userId) : 'Male';
-  }
-
-  private avatarForGender(gender: Gender): string {
-    return this.genderAvatarMap[gender] ?? this.genderAvatarMap.Male;
   }
 
   private loadUserPasswords(): Record<string, string> {

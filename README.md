@@ -1,6 +1,6 @@
 # MOC Angular Prototype
 
-Angular implementation of `FEATURE 9634531 - Step 1: Initiation`.
+Prototype implementation of a basic MOC workflow using dummy data only.
 
 ## Run
 

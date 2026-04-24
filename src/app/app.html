@@ -39,63 +39,40 @@
   <p-toast position="top-right"></p-toast>
   <p-confirmDialog></p-confirmDialog>
 
-  <header class="app-header">
-    <div class="brand-block">
-      <img src="chevron-logo.svg" alt="Chevron" class="company-logo" />
-      <div class="brand-copy">
-        <span class="brand-kicker">Chevron Internal Prototype</span>
-        <h1>Management of Change (MOC)</h1>
-        <p>Route every change from initiation to closure with role-based visibility.</p>
+  <p-menubar [model]="[]" styleClass="topbar" aria-label="Top navigation">
+    <ng-template pTemplate="start">
+      <div class="topbar-brand">
+        <img src="chevron-logo.svg" alt="Chevron" class="topbar-logo" />
+        <div class="topbar-copy">
+          <div class="topbar-title">MOC Prototype</div>
+          <div class="topbar-sub">Management of Change workflow demo (dummy data only).</div>
+        </div>
       </div>
-    </div>
-    <div class="header-user">
-      <button type="button" class="profile-trigger" (click)="openProfileModal()">
-        <p-avatar class="profile-avatar-img" [image]="currentAvatarSrc" size="large" shape="circle" [ariaLabel]="currentDisplayName + ' avatar'"></p-avatar>
-        <span class="profile-identity">
-          <small>{{ currentRoleLabel }}</small>
-          <strong>{{ currentDisplayName }}</strong>
+    </ng-template>
+    <ng-template pTemplate="end">
+      <button type="button" class="topbar-user" (click)="userMenu.toggle($event)" aria-haspopup="true" aria-controls="user-menu">
+        <p-avatar [label]="avatarInitials(currentDisplayName)" shape="circle" size="large"></p-avatar>
+        <span class="topbar-user-meta">
+          <span class="topbar-user-name">{{ currentDisplayName }}</span>
+          <span class="topbar-user-role">{{ currentRoleLabel }}</span>
         </span>
+        <i class="pi pi-angle-down" aria-hidden="true"></i>
       </button>
-      <button type="button" class="logout-primary" (click)="logout()">Logout</button>
-    </div>
-  </header>
+      <p-menu #userMenu id="user-menu" [popup]="true" [model]="userMenuItems"></p-menu>
+    </ng-template>
+  </p-menubar>
 
-  <main class="app-shell">
-    <nav class="sidebar" aria-label="Prototype navigation">
-      <button type="button" [class.active]="view === 'dashboard'" (click)="openDashboard()">
-        <span class="btn-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
-        </span>
-        <span>Dashboard</span>
-      </button>
-      <button type="button" [class.active]="view === 'actions'" (click)="openActionBoard()">
-        <span class="btn-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M8 6h13v2H8zM8 11h13v2H8zM8 16h13v2H8zM3 6h3v3H3zM3 11h3v3H3zM3 16h3v3H3z"/></svg>
-        </span>
-        <span>My Action Items</span>
-        <span *ngIf="myActionItems.length" class="p-badge p-badge-sm" style="margin-left:auto">{{ myActionItems.length }}</span>
-      </button>
-      <button type="button" [disabled]="!canInitiate()" [class.active]="showCreateModal" (click)="openCreate()">
-        <span class="btn-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z"/></svg>
-        </span>
-        <span>Create New MOC</span>
-      </button>
-      <button type="button" *ngIf="currentUser.role === 'Admin'" [class.active]="view === 'admin'" (click)="openAdmin()">
-        <span class="btn-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M19.4 13a7.8 7.8 0 0 0 .05-1 7.8 7.8 0 0 0-.05-1l2.08-1.63-1.98-3.42-2.5 1a7.66 7.66 0 0 0-1.73-1l-.38-2.65h-3.9l-.38 2.65a7.66 7.66 0 0 0-1.73 1l-2.5-1-1.98 3.42L4.6 11a7.8 7.8 0 0 0-.05 1c0 .34.02.67.06 1l-2.1 1.63 1.98 3.42 2.52-1a7.55 7.55 0 0 0 1.72.99l.38 2.66h3.9l.38-2.66a7.55 7.55 0 0 0 1.72-.99l2.52 1 1.98-3.42zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z"/></svg>
-        </span>
-        <span>Checklist Admin</span>
-      </button>
-      <button type="button" class="muted-button">
-        <span class="btn-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 17h-2v-2h2Zm2.1-7.2-.9.9A2.8 2.8 0 0 0 13 15h-2v-.5a3.5 3.5 0 0 1 1-2.5l1.2-1.2a1.5 1.5 0 1 0-2.6-1.1H8.6a3.5 3.5 0 1 1 6.5 2.1Z"/></svg>
-        </span>
-        <span>Help</span>
-      </button>
-    </nav>
+  <div class="shell">
+    <aside class="side" aria-label="Prototype navigation">
+      <p-panelMenu [model]="navMenuItems" [multiple]="false" styleClass="side-menu"></p-panelMenu>
+      <div class="side-meta">
+        <span>Dummy data only</span>
+        <span class="dot">•</span>
+        <span>{{ visibleRecords.length }} visible records</span>
+      </div>
+    </aside>
 
-    <section class="workspace">
+    <main class="content">
       <ng-container *ngIf="view === 'dashboard'">
         <div class="page-title">
           <div>
@@ -333,26 +310,90 @@
           <span class="status">{{ selectedMoc.workflowState }}</span>
         </div>
 
-        <div class="wf-panel">
-          <div class="wf-track" aria-label="Workflow progress">
-            <div *ngFor="let step of workflowSteps; let idx = index; let first = first; let last = last"
-                 class="wf-seg"
-                 [pTooltip]="step.label + ' — ' + workflowStepState(selectedMoc, step.key)"
-                 tooltipPosition="top"
-                 [class.wf-done]="workflowStepState(selectedMoc, step.key) === 'Complete'"
-                 [class.wf-active]="workflowStepState(selectedMoc, step.key) === 'Current'"
-                 [class.wf-first]="first"
-                 [class.wf-last]="last">
-              <div class="wf-seg-inner">
-                <span class="wf-num">{{ idx + 1 }}</span>
-                <span class="wf-label">{{ step.label }}</span>
+        <section class="panel workflow-map-panel" aria-label="Workflow map">
+          <div class="workflow-map-head">
+            <div>
+              <h3>Workflow Map</h3>
+              <p>1 to 8 progression in the required order.</p>
+            </div>
+            <div class="workflow-map-actions">
+              <button pButton type="button" icon="pi pi-history" label="Routing Tracker" class="p-button-outlined p-button-sm" (click)="showRoutingTracker = true"></button>
+            </div>
+          </div>
+
+          <div class="route-map-wrap" role="img" aria-label="Workflow route map">
+            <div class="route-map-grid">
+              <!-- Row 1: 1 -> 2 -> 3 -> 4 -->
+              <div class="rm-node n1" [ngClass]="workflowNodeClass(selectedMoc, workflowSteps[0].key)">
+                <div class="rm-num">1</div>
+                <div class="rm-meta">
+                  <div class="rm-pill" [ngClass]="'is-' + workflowStepState(selectedMoc, workflowSteps[0].key)">{{ workflowStepState(selectedMoc, workflowSteps[0].key) }}</div>
+                  <div class="rm-label">{{ workflowSteps[0].label }}</div>
+                </div>
+              </div>
+              <div class="rm-conn right c12" [ngClass]="'is-' + connectorState(selectedMoc, 0)"></div>
+              <div class="rm-node n2" [ngClass]="workflowNodeClass(selectedMoc, workflowSteps[1].key)">
+                <div class="rm-num">2</div>
+                <div class="rm-meta">
+                  <div class="rm-pill" [ngClass]="'is-' + workflowStepState(selectedMoc, workflowSteps[1].key)">{{ workflowStepState(selectedMoc, workflowSteps[1].key) }}</div>
+                  <div class="rm-label">{{ workflowSteps[1].label }}</div>
+                </div>
+              </div>
+              <div class="rm-conn right c23" [ngClass]="'is-' + connectorState(selectedMoc, 1)"></div>
+              <div class="rm-node n3" [ngClass]="workflowNodeClass(selectedMoc, workflowSteps[2].key)">
+                <div class="rm-num">3</div>
+                <div class="rm-meta">
+                  <div class="rm-pill" [ngClass]="'is-' + workflowStepState(selectedMoc, workflowSteps[2].key)">{{ workflowStepState(selectedMoc, workflowSteps[2].key) }}</div>
+                  <div class="rm-label">{{ workflowSteps[2].label }}</div>
+                </div>
+              </div>
+              <div class="rm-conn right c34" [ngClass]="'is-' + connectorState(selectedMoc, 2)"></div>
+              <div class="rm-node n4" [ngClass]="workflowNodeClass(selectedMoc, workflowSteps[3].key)">
+                <div class="rm-num">4</div>
+                <div class="rm-meta">
+                  <div class="rm-pill" [ngClass]="'is-' + workflowStepState(selectedMoc, workflowSteps[3].key)">{{ workflowStepState(selectedMoc, workflowSteps[3].key) }}</div>
+                  <div class="rm-label">{{ workflowSteps[3].label }}</div>
+                </div>
+              </div>
+
+              <!-- Down connector: 4 -> 5 -->
+              <div class="rm-conn down c45" [ngClass]="'is-' + connectorState(selectedMoc, 3)"></div>
+
+              <!-- Row 2 (snake): 8 <- 7 <- 6 <- 5 -->
+              <div class="rm-node n8" [ngClass]="workflowNodeClass(selectedMoc, workflowSteps[7].key)">
+                <div class="rm-num">8</div>
+                <div class="rm-meta">
+                  <div class="rm-pill" [ngClass]="'is-' + workflowStepState(selectedMoc, workflowSteps[7].key)">{{ workflowStepState(selectedMoc, workflowSteps[7].key) }}</div>
+                  <div class="rm-label">{{ workflowSteps[7].label }}</div>
+                </div>
+              </div>
+              <div class="rm-conn left c87" [ngClass]="'is-' + connectorState(selectedMoc, 6)"></div>
+              <div class="rm-node n7" [ngClass]="workflowNodeClass(selectedMoc, workflowSteps[6].key)">
+                <div class="rm-num">7</div>
+                <div class="rm-meta">
+                  <div class="rm-pill" [ngClass]="'is-' + workflowStepState(selectedMoc, workflowSteps[6].key)">{{ workflowStepState(selectedMoc, workflowSteps[6].key) }}</div>
+                  <div class="rm-label">{{ workflowSteps[6].label }}</div>
+                </div>
+              </div>
+              <div class="rm-conn left c76" [ngClass]="'is-' + connectorState(selectedMoc, 5)"></div>
+              <div class="rm-node n6" [ngClass]="workflowNodeClass(selectedMoc, workflowSteps[5].key)">
+                <div class="rm-num">6</div>
+                <div class="rm-meta">
+                  <div class="rm-pill" [ngClass]="'is-' + workflowStepState(selectedMoc, workflowSteps[5].key)">{{ workflowStepState(selectedMoc, workflowSteps[5].key) }}</div>
+                  <div class="rm-label">{{ workflowSteps[5].label }}</div>
+                </div>
+              </div>
+              <div class="rm-conn left c65" [ngClass]="'is-' + connectorState(selectedMoc, 4)"></div>
+              <div class="rm-node n5" [ngClass]="workflowNodeClass(selectedMoc, workflowSteps[4].key)">
+                <div class="rm-num">5</div>
+                <div class="rm-meta">
+                  <div class="rm-pill" [ngClass]="'is-' + workflowStepState(selectedMoc, workflowSteps[4].key)">{{ workflowStepState(selectedMoc, workflowSteps[4].key) }}</div>
+                  <div class="rm-label">{{ workflowSteps[4].label }}</div>
+                </div>
               </div>
             </div>
           </div>
-          <div class="wf-actions">
-            <button type="button" class="secondary small" (click)="showRoutingTracker = true"><i class="pi pi-history" style="margin-right:4px"></i>Routing Tracker</button>
-          </div>
-        </div>
+        </section>
 
         <section class="panel readonly-grid">
           <div>
@@ -793,25 +834,21 @@
           </div>
         </section>
       </ng-container>
-    </section>
-  </main>
+    </main>
+  </div>
 
-  <div class="modal-backdrop" *ngIf="showCreateModal" (click)="onCreateModalBackdropClick($event)">
-    <section
-      #createModalCard
-      class="modal-card"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="create-moc-title"
-      tabindex="-1"
-      (keydown)="onCreateModalKeydown($event)"
-      (click)="$event.stopPropagation()"
-    >
-      <div class="modal-head">
-        <h2 id="create-moc-title">Initiate New MOC</h2>
-        <button type="button" class="secondary small" aria-label="Close create MOC dialog" (click)="closeCreateModal()">Close</button>
-      </div>
-      <form class="form-panel modal-form modal-two-col" (ngSubmit)="submitMoc()" novalidate>
+  <p-dialog
+    header="Initiate New MOC"
+    [(visible)]="showCreateModal"
+    [modal]="true"
+    [dismissableMask]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{width: '980px', maxWidth: 'calc(100vw - 2rem)'}"
+    styleClass="dialog-wide"
+    (onHide)="closeCreateModal()"
+  >
+      <form class="form-panel modal-two-col" (ngSubmit)="submitMoc()" novalidate>
         <label>
           Title <span>*</span>
           <input name="title" [(ngModel)]="form.title" placeholder="Example: Replace gasket on Pump P-101" [class.field-invalid]="showError('title')" />
@@ -866,18 +903,22 @@
           </button>
         </footer>
       </form>
-    </section>
-  </div>
+  </p-dialog>
 
-  <div class="modal-backdrop" *ngIf="showProfileModal" (click)="closeProfileModal()">
-    <section class="modal-card profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title" (click)="$event.stopPropagation()">
-      <div class="modal-head">
-        <h2 id="profile-title">Profile & Preferences</h2>
-        <button type="button" class="secondary small" (click)="closeProfileModal()">Close</button>
-      </div>
+  <p-dialog
+    header="Profile & Preferences"
+    [(visible)]="showProfileModal"
+    [modal]="true"
+    [dismissableMask]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{width: '920px', maxWidth: 'calc(100vw - 2rem)'}"
+    styleClass="dialog-wide"
+    (onHide)="closeProfileModal()"
+  >
       <div class="profile-avatar-section" *ngIf="profileForm">
         <div class="profile-avatar-preview">
-          <p-avatar class="profile-avatar-card" [image]="profileAvatarSrc(profileForm)" size="xlarge" shape="circle" [ariaLabel]="profileForm.displayName + ' avatar'"></p-avatar>
+          <p-avatar class="profile-avatar-card" [label]="avatarInitials(profileForm.displayName || currentDisplayName)" size="xlarge" shape="circle" [ariaLabel]="(profileForm.displayName || currentDisplayName) + ' avatar'"></p-avatar>
           <div>
             <strong>{{ profileForm.displayName || currentDisplayName }}</strong>
             <span>{{ currentRoleLabel }}</span>
@@ -888,12 +929,6 @@
         <label>
           Display Name
           <input name="profileDisplayName" [(ngModel)]="profileForm.displayName" />
-        </label>
-        <label>
-          Gender
-          <select name="profileGender" [(ngModel)]="profileForm.gender">
-            <option *ngFor="let option of genderOptions" [value]="option">{{ option }}</option>
-          </select>
         </label>
         <label>
           Email
@@ -949,58 +984,70 @@
 
       <small class="error" *ngIf="profileError">{{ profileError }}</small>
       <small class="success" *ngIf="profileStatus">{{ profileStatus }}</small>
-    </section>
-  </div>
+  </p-dialog>
 
-  <div class="modal-backdrop" *ngIf="showRoutingTracker && selectedMoc" (click)="showRoutingTracker = false">
-    <section class="modal-card preview-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
-      <div class="modal-head">
-        <h2>Routing Tracker</h2>
-        <button type="button" class="secondary small" (click)="showRoutingTracker = false">Close</button>
-      </div>
-      <div style="max-height:calc(100vh - 200px);overflow:auto;padding:8px">
-        <p-timeline [value]="routeEvents(selectedMoc)" align="left">
-          <ng-template pTemplate="marker" let-event>
-            <span class="tl-marker" [class.tl-done]="event.step === 'Initiated' || event.step === 'Closed'">
-              <i class="pi pi-circle-fill"></i>
-            </span>
-          </ng-template>
-          <ng-template pTemplate="content" let-event>
-            <div class="tl-card">
-              <div class="tl-head"><span class="status">{{ event.step }}</span> <small class="route-time">{{ event.at | date: 'MMM d, y, h:mm a' }}</small></div>
-              <p class="tl-note">{{ event.note }}</p>
-              <small class="tl-meta">By {{ userName(event.byUserId) }} → {{ event.assignedToUserIds.length ? userList(event.assignedToUserIds) : 'No assignee' }}</small>
-            </div>
-          </ng-template>
-        </p-timeline>
-      </div>
-    </section>
-  </div>
+  <p-dialog
+    header="Routing Tracker"
+    [(visible)]="showRoutingTracker"
+    [modal]="true"
+    [dismissableMask]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{width: '1040px', maxWidth: 'calc(100vw - 2rem)'}"
+    styleClass="dialog-wide"
+    (onHide)="showRoutingTracker = false"
+  >
+    <p-table *ngIf="selectedMoc" [value]="routingRows(selectedMoc)" styleClass="p-datatable-sm p-datatable-striped">
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width:56px">#</th>
+          <th style="width:180px">Step</th>
+          <th>Summary</th>
+          <th style="width:140px">Routed By</th>
+          <th style="width:200px">Assigned To</th>
+          <th style="width:200px">Time</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-row>
+        <tr>
+          <td>{{ row.n }}</td>
+          <td><p-tag [value]="row.step" severity="info"></p-tag></td>
+          <td [title]="row.summary">{{ row.summary }}</td>
+          <td>{{ row.by }}</td>
+          <td>{{ row.assignedTo }}</td>
+          <td>{{ row.at | date: 'MMM d, y, h:mm a' }}</td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </p-dialog>
 
+  <p-dialog
+    [header]="previewDocument?.title || 'Document Preview'"
+    [(visible)]="showPreviewModal"
+    [modal]="true"
+    [dismissableMask]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{width: '1040px', maxWidth: 'calc(100vw - 2rem)'}"
+    styleClass="dialog-wide"
+    (onHide)="closePreviewModal()"
+  >
+    <div class="preview-meta">
+      <strong>{{ previewDocument?.fileName }}</strong>
+    </div>
 
-  <div class="modal-backdrop" *ngIf="showPreviewModal" (click)="closePreviewModal()">
-    <section class="modal-card preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title" (click)="$event.stopPropagation()">
-      <div class="modal-head">
-        <h2 id="preview-title">{{ previewDocument?.title || 'Document Preview' }}</h2>
-        <button type="button" class="secondary small" (click)="closePreviewModal()">Close</button>
+    <div class="preview-body" [ngSwitch]="previewType()">
+      <iframe *ngSwitchCase="'pdf'" class="doc-frame" [src]="previewResourceUrl" title="Document preview"></iframe>
+      <img *ngSwitchCase="'image'" class="doc-image" [src]="previewDocument?.dataUrl" [alt]="previewDocument?.fileName || 'Preview image'" />
+      <pre *ngSwitchCase="'text'" class="doc-text">{{ previewTextContent }}</pre>
+      <div *ngSwitchDefault class="preview-empty">
+        <strong>In-app preview is not available for this file type.</strong>
+        <p>Use Download to open it in your local application.</p>
       </div>
-      <div class="preview-meta">
-        <strong>{{ previewDocument?.fileName }}</strong>
-      </div>
+    </div>
 
-      <div class="preview-body" [ngSwitch]="previewType()">
-        <iframe *ngSwitchCase="'pdf'" class="doc-frame" [src]="previewResourceUrl" title="Document preview"></iframe>
-        <img *ngSwitchCase="'image'" class="doc-image" [src]="previewDocument?.dataUrl" [alt]="previewDocument?.fileName || 'Preview image'" />
-        <pre *ngSwitchCase="'text'" class="doc-text">{{ previewTextContent }}</pre>
-        <div *ngSwitchDefault class="preview-empty">
-          <strong>In-app preview is not available for this file type.</strong>
-          <p>Use Download to open it in your local application.</p>
-        </div>
-      </div>
-
-      <div class="form-actions">
-        <button type="button" class="primary" (click)="downloadPreviewDocument()">Download</button>
-      </div>
-    </section>
-  </div>
+    <div class="form-actions">
+      <button pButton type="button" label="Download" icon="pi pi-download" (click)="downloadPreviewDocument()"></button>
+    </div>
+  </p-dialog>
 </ng-container>
