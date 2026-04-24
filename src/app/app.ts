@@ -3,6 +3,14 @@ import { Component, ElementRef, HostListener, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { AvatarModule } from 'primeng/avatar';
+import { ToastModule } from 'primeng/toast';
+import { MessageService, ConfirmationService } from 'primeng/api';
+import { TableModule } from 'primeng/table';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { TooltipModule } from 'primeng/tooltip';
+import { AccordionModule } from 'primeng/accordion';
+import { BadgeModule } from 'primeng/badge';
+import { TimelineModule } from 'primeng/timeline';
 
 type View = 'login' | 'dashboard' | 'detail' | 'admin' | 'actions';
 type UserRole = 'Owner' | 'Evaluator' | 'Manager' | 'Admin';
@@ -168,7 +176,8 @@ interface DocumentPreview {
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, FormsModule, AvatarModule],
+  imports: [CommonModule, FormsModule, AvatarModule, ToastModule, TableModule, ConfirmDialogModule, TooltipModule, AccordionModule, BadgeModule, TimelineModule],
+  providers: [MessageService, ConfirmationService],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
@@ -225,6 +234,7 @@ export class App {
   showCreateModal = false;
   showProfileModal = false;
   showPreviewModal = false;
+  showRoutingTracker = false;
   mocRowsLimit = 100;
   mocFilterText = '';
   currentUser: DemoUser | null = this.loadSession();
@@ -238,6 +248,7 @@ export class App {
   previewTextContent = '';
   submitAttempted = false;
   isSubmitting = false;
+  actionLoading = false;
   form: InitiationForm = this.blankForm();
   newAction: Pick<ActionItem, 'phase' | 'description' | 'assigneeId' | 'dueDate'> = this.blankAction();
   actionComments: Record<string, string> = {};
@@ -253,7 +264,7 @@ export class App {
   private lastFocusedElement: HTMLElement | null = null;
   @ViewChild('createModalCard') createModalCard?: ElementRef<HTMLElement>;
 
-  constructor(private readonly sanitizer: DomSanitizer) {
+  constructor(private readonly sanitizer: DomSanitizer, private readonly messageService: MessageService, private readonly confirmationService: ConfirmationService) {
     if (this.currentUser) {
       this.view = 'dashboard';
     }
@@ -422,6 +433,7 @@ export class App {
     this.selectedMoc = null;
     this.submitAttempted = false;
     this.showCreateModal = false;
+    window.scrollTo({ top: 0 });
   }
 
   openProfileModal(): void {
@@ -553,15 +565,11 @@ export class App {
 
   @HostListener('document:keydown.escape')
   onEscapePressed(): void {
-    if (this.showCreateModal) {
-      this.closeCreateModal();
-      return;
-    }
-    if (this.showPreviewModal) {
-      this.closePreviewModal();
-      return;
-    }
-    if (this.showProfileModal) this.closeProfileModal();
+    if (this.showCreateModal) { this.closeCreateModal(); return; }
+    if (this.showPreviewModal) { this.closePreviewModal(); return; }
+    if (this.showProfileModal) { this.closeProfileModal(); return; }
+    if (this.showRoutingTracker) { this.showRoutingTracker = false; return; }
+    if (this.view === 'detail') { this.openDashboard(); return; }
   }
 
   openAdmin(): void {
@@ -581,7 +589,9 @@ export class App {
     this.cancelComment = '';
     this.reworkNotice = this.latestDecisionComment(record, 'Implement', 'Rejected');
     this.view = 'detail';
+    this.view = 'detail';
     this.showCreateModal = false;
+    window.scrollTo({ top: 0 });
   }
 
   openFromActionBoard(row: ActionBoardRow): void {
@@ -693,6 +703,14 @@ export class App {
     return 'step';
   }
 
+  workflowStepState(record: MocRecord, stepKey: WorkflowState | 'Initiated'): 'Complete' | 'Current' | 'Upcoming' {
+    const currentIndex = this.workflowStepIndex(record);
+    const stepIndex = this.workflowSteps.findIndex((entry) => entry.key === stepKey);
+    if (stepIndex < currentIndex) return 'Complete';
+    if (stepIndex === currentIndex) return 'Current';
+    return 'Upcoming';
+  }
+
   workflowProgressLabel(record: MocRecord): string {
     const index = this.workflowStepIndex(record);
     const step = this.workflowSteps[index] ?? this.workflowSteps[0];
@@ -701,6 +719,17 @@ export class App {
 
   userName(userId: string): string {
     return this.users.find((user) => user.id === userId)?.name ?? userId;
+  }
+
+  relativeTime(iso: string): string {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
   }
 
   userList(userIds: string[]): string {
@@ -1037,13 +1066,20 @@ export class App {
     if (!this.canCancelMoc(record)) return;
     const comment = this.cancelComment.trim();
     if (!comment) return;
-    record.workflowState = 'Cancelled';
-    record.status = 'Cancelled';
-    record.waitingOn = '-';
-    record.actionFlag = 'Complete';
-    this.addApproval(record, 'Implement', 'Cancelled', comment);
-    this.cancelComment = '';
-    this.finishWorkflowUpdate(record, `MOC cancelled by manager. Comment: ${comment}`);
+    this.confirmationService.confirm({
+      message: `Are you sure you want to cancel ${record.id}?`,
+      header: 'Cancel MOC',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        record.workflowState = 'Cancelled';
+        record.status = 'Cancelled';
+        record.waitingOn = '-';
+        record.actionFlag = 'Complete';
+        this.addApproval(record, 'Implement', 'Cancelled', comment);
+        this.cancelComment = '';
+        this.finishWorkflowUpdate(record, `MOC cancelled by manager. Comment: ${comment}`);
+      },
+    });
   }
 
   canMarkImplemented(record: MocRecord): boolean {
@@ -1151,13 +1187,20 @@ export class App {
 
   closeMoc(record: MocRecord): void {
     if (!this.canClose(record)) return;
-    record.workflowState = 'Closed';
-    record.status = 'Closed';
-    record.waitingOn = '-';
-    record.actionFlag = 'Complete';
-    record.closureDate = new Date().toISOString();
-    record.closedByUserId = this.currentUser?.id;
-    this.finishWorkflowUpdate(record, 'MOC closed.');
+    this.confirmationService.confirm({
+      message: `Are you sure you want to close ${record.id}? This cannot be undone.`,
+      header: 'Close MOC',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        record.workflowState = 'Closed';
+        record.status = 'Closed';
+        record.waitingOn = '-';
+        record.actionFlag = 'Complete';
+        record.closureDate = new Date().toISOString();
+        record.closedByUserId = this.currentUser?.id;
+        this.finishWorkflowUpdate(record, 'MOC closed.');
+      },
+    });
   }
 
   togglePssrChecklist(record: MocRecord, item: ChecklistItem, checked: boolean): void {
@@ -1307,17 +1350,28 @@ export class App {
     this.records = [record, ...this.records];
     this.saveRecords();
     this.form = this.blankForm();
-    this.selectedMoc = record;
-    this.showCreateModal = false;
-    this.view = 'detail';
-    this.isSubmitting = false;
+    setTimeout(() => {
+      this.selectedMoc = record;
+      this.showCreateModal = false;
+      this.view = 'detail';
+      this.isSubmitting = false;
+      this.messageService.add({ severity: 'success', summary: 'MOC Created', detail: `${record.id} initiated and routed for evaluation.`, life: 4000 });
+    }, 800);
   }
 
   resetDummyData(): void {
-    this.records = this.seedRecords();
-    this.mocFilterText = '';
-    this.saveRecords();
-    this.openDashboard();
+    this.confirmationService.confirm({
+      message: 'Reset all MOC data to defaults? This will remove any changes.',
+      header: 'Reset Dummy Data',
+      icon: 'pi pi-refresh',
+      accept: () => {
+        this.records = this.seedRecords();
+        this.mocFilterText = '';
+        this.saveRecords();
+        this.openDashboard();
+        this.messageService.add({ severity: 'info', summary: 'Reset', detail: 'Dummy data restored.', life: 3000 });
+      },
+    });
   }
 
   isDisciplineSelected(discipline: string): boolean {
@@ -1482,11 +1536,16 @@ export class App {
   }
 
   private finishWorkflowUpdate(record: MocRecord, note: string): void {
-    record.lastUpdatedDate = new Date().toISOString();
-    this.recalculateRecordState(record);
-    this.addHistory(record, record.workflowState, note);
-    this.selectedMoc = record;
-    this.saveRecords();
+    this.actionLoading = true;
+    setTimeout(() => {
+      record.lastUpdatedDate = new Date().toISOString();
+      this.recalculateRecordState(record);
+      this.addHistory(record, record.workflowState, note);
+      this.selectedMoc = record;
+      this.saveRecords();
+      this.actionLoading = false;
+      this.messageService.add({ severity: 'success', summary: record.workflowState, detail: note, life: 4000 });
+    }, 1200);
   }
 
   private addApproval(record: MocRecord, gate: GateType, decision: GateDecision, comments?: string): void {

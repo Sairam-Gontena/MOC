@@ -148,6 +148,17 @@ select {
   font-size: 14px;
 }
 
+.brand-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: #65c3ff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+
 .header-user {
   display: flex;
   align-items: center;
@@ -537,6 +548,11 @@ th {
 tbody tr {
   transition: background-color 0.16s ease;
 }
+
+tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
 
 .table-wrap-grid tbody tr {
   cursor: pointer;
@@ -1403,3 +1419,191 @@ textarea {
     justify-self: start;
   }
 }
+
+/* Chevron workflow stepper */
+.wf-panel {
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.wf-track {
+  display: flex;
+}
+
+.wf-seg {
+  flex: 1;
+  min-width: 0;
+}
+
+.wf-seg-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 56px;
+  padding: 6px 16px 6px 28px;
+  background: #eef3f8;
+  color: #6b7f94;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%);
+}
+
+.wf-first .wf-seg-inner {
+  padding-left: 14px;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%);
+  border-radius: 8px 0 0 8px;
+}
+
+.wf-last .wf-seg-inner {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 14px 50%);
+  border-radius: 0 8px 8px 0;
+}
+
+.wf-num {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.07);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.wf-label {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.wf-done .wf-seg-inner {
+  background: #1b6b4a;
+  color: #fff;
+}
+
+.wf-done .wf-num {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.wf-active .wf-seg-inner {
+  background: var(--brand);
+  color: #fff;
+}
+
+.wf-active .wf-num {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 860px) {
+  .wf-track {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .wf-seg {
+    flex: 0 0 calc(25% - 3px);
+  }
+
+  .wf-seg-inner,
+  .wf-first .wf-seg-inner,
+  .wf-last .wf-seg-inner {
+    clip-path: none;
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+}
+
+
+/* Breadcrumbs */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.breadcrumb a {
+  color: var(--brand);
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-sep {
+  color: #9ca3af;
+}
+
+.breadcrumb-current {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+
+/* Sticky header shadow */
+.table-wrap th,
+.updates-compact-wrap th,
+.routing-log-wrap th {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+
+/* Form validation red borders */
+.modal-form label:has(+ .error:not(:empty)) input,
+.modal-form label:has(+ .error:not(:empty)) textarea,
+.modal-form label:has(+ .error:not(:empty)) select,
+.modal-form .error + input,
+.modal-form input.ng-invalid.ng-touched,
+.modal-form textarea.ng-invalid.ng-touched {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1);
+}
+
+
+.field-invalid {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1) !important;
+}
+
+
+.routing-trigger-row {
+  margin-bottom: 14px;
+}
+
+
+.wf-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+
+.grid-toolbar-ptable {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.grid-toolbar-ptable input {
+  max-width: 300px;
+}
+
+
+/* Timeline */
+.tl-marker { color: var(--brand); font-size: 10px; }
+.tl-marker.tl-done { color: var(--ok); }
+.tl-card { padding: 4px 0 12px; }
+.tl-head { display: flex; align-items: center; gap: 8px; }
+.tl-note { margin: 4px 0 2px; color: var(--text); font-size: 13px; }
+.tl-meta { color: var(--muted); font-size: 12px; }
