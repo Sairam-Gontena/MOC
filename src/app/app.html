@@ -331,6 +331,7 @@
             <div class="route-map-svg" aria-label="Workflow route map">
               <svg viewBox="0 0 1000 140" preserveAspectRatio="none" aria-hidden="true">
                 <defs>
+                  <filter id="node-shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.15"/></filter>
                   <marker id="arrow-done" markerWidth="12" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
                     <path d="M0,0 L12,6 L0,12 z" fill="#16a34a"></path>
                   </marker>
@@ -350,7 +351,7 @@
                     [attr.x2]="routeMapX(i + 1)"
                     [attr.y2]="routeMapY"
                     [attr.stroke]="connectorStroke(selectedMoc, i)"
-                    stroke-width="8"
+                    stroke-width="6"
                     stroke-linecap="round"
                     [attr.marker-end]="'url(#' + connectorMarkerId(selectedMoc, i) + ')'"
                   ></line>
@@ -360,12 +361,12 @@
                   <circle
                     [attr.cx]="routeMapX(i)"
                     [attr.cy]="routeMapY"
-                    r="22"
+                    r="28"
                     [attr.fill]="mapNodeFill(selectedMoc, i)"
                     [attr.stroke]="mapNodeStroke(selectedMoc, i)"
-                    stroke-width="5"
+                    stroke-width="4" filter="url(#node-shadow)"
                   ></circle>
-                  <text [attr.x]="routeMapX(i)" [attr.y]="routeMapY + 6" text-anchor="middle" font-size="18" font-weight="900" fill="#0f172a">
+                  <text [attr.x]="routeMapX(i)" [attr.y]="routeMapY + 6" text-anchor="middle" font-size="16" font-weight="700" [attr.fill]="workflowStepState(selectedMoc, workflowSteps[i].key) === 'Upcoming' ? '#64748b' : '#ffffff'">
                     {{ i + 1 }}
                   </text>
                 </ng-container>

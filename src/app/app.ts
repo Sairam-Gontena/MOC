@@ -844,16 +844,16 @@ export class App {
 
   mapNodeFill(record: MocRecord, idx: number): string {
     const state = this.workflowStepState(record, this.workflowSteps[idx]?.key ?? 'Evaluation');
-    if (state === 'Complete') return '#dcfce7';
-    if (state === 'Current') return '#dbeafe';
-    return '#f1f5f9';
+    if (state === 'Complete') return '#16a34a';
+    if (state === 'Current') return '#2563eb';
+    return '#e8edf3';
   }
 
   mapNodeStroke(record: MocRecord, idx: number): string {
     const state = this.workflowStepState(record, this.workflowSteps[idx]?.key ?? 'Evaluation');
-    if (state === 'Complete') return '#16a34a';
-    if (state === 'Current') return '#2563eb';
-    return '#cbd5e1';
+    if (state === 'Complete') return '#15803d';
+    if (state === 'Current') return '#1d4ed8';
+    return '#c8d1dc';
   }
 
   // Route map SVG geometry (fixed single-line map).
