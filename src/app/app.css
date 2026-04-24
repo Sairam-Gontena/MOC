@@ -1234,12 +1234,10 @@ td input {
 
 .profile-avatar-section {
   margin-bottom: 14px;
-  padding: 14px;
+  padding: 12px 14px;
   border: 1px solid #d9e5f2;
   border-radius: 12px;
   background: linear-gradient(180deg, #f8fbff 0%, #f3f8fd 100%);
-  display: grid;
-  gap: 14px;
 }
 
 .profile-avatar-preview {
@@ -1269,22 +1267,6 @@ td input {
   color: #5a7189;
   font-size: 12px;
   font-weight: 700;
-}
-
-.profile-avatar-meta {
-  display: grid;
-  gap: 8px;
-}
-
-.profile-avatar-meta label {
-  max-width: 220px;
-}
-
-.profile-avatar-meta p {
-  margin: 0;
-  color: #5b7087;
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .profile-grid {

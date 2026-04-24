@@ -5,7 +5,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 type View = 'login' | 'dashboard' | 'detail' | 'admin' | 'actions';
 type UserRole = 'Owner' | 'Evaluator' | 'Manager' | 'Admin';
-type Sex = 'Male' | 'Female';
+type Gender = 'Male' | 'Female';
 type WorkflowState =
   | 'Evaluation'
   | 'Approval to Implement'
@@ -144,7 +144,7 @@ interface FileAttachment {
 
 interface UserProfile {
   displayName: string;
-  sex: Sex;
+  gender: Gender;
   email: string;
   department: string;
   phone: string;
@@ -199,8 +199,8 @@ export class App {
     { id: 'manager1', name: 'Morgan', role: 'Manager' },
     { id: 'admin1', name: 'Ada', role: 'Admin' },
   ];
-  readonly sexOptions: Sex[] = ['Male', 'Female'];
-  readonly userSexDefaults: Record<string, Sex> = {
+  readonly genderOptions: Gender[] = ['Male', 'Female'];
+  readonly userGenderDefaults: Record<string, Gender> = {
     owner1: 'Female',
     owner2: 'Male',
     mech1: 'Male',
@@ -211,7 +211,7 @@ export class App {
     manager1: 'Male',
     admin1: 'Female',
   };
-  readonly sexAvatarMap: Record<Sex, string> = {
+  readonly genderAvatarMap: Record<Gender, string> = {
     Male: 'avatars/avatar-male.svg',
     Female: 'avatars/avatar-female.svg',
   };
@@ -363,9 +363,9 @@ export class App {
   }
 
   get currentAvatarSrc(): string {
-    if (!this.currentUser) return this.sexAvatarMap.Male;
-    const sex = this.userProfiles[this.currentUser.id]?.sex ?? this.defaultSex(this.currentUser.id);
-    return this.avatarForSex(sex);
+    if (!this.currentUser) return this.genderAvatarMap.Male;
+    const gender = this.userProfiles[this.currentUser.id]?.gender ?? this.defaultGender(this.currentUser.id);
+    return this.avatarForGender(gender);
   }
 
   loginWithPassword(): void {
@@ -444,7 +444,7 @@ export class App {
     const profile = {
       ...this.profileForm,
       displayName: this.profileForm.displayName.trim() || this.currentUser.name,
-      sex: this.normalizeSex(this.profileForm.sex, this.currentUser.id),
+      gender: this.normalizeGender(this.profileForm.gender, this.currentUser.id),
       email: this.profileForm.email.trim(),
       department: this.profileForm.department.trim(),
       phone: this.profileForm.phone.trim(),
@@ -463,7 +463,7 @@ export class App {
   }
 
   profileAvatarSrc(profile: UserProfile): string {
-    return this.avatarForSex(this.normalizeSex(profile.sex, this.currentUser?.id));
+    return this.avatarForGender(this.normalizeGender(profile.gender, this.currentUser?.id));
   }
 
   updatePassword(): void {
@@ -1763,7 +1763,7 @@ export class App {
   private defaultProfile(user: DemoUser): UserProfile {
     return {
       displayName: user.name,
-      sex: this.defaultSex(user.id),
+      gender: this.defaultGender(user.id),
       email: `${user.name.toLowerCase()}@chevron.com`,
       department: user.discipline ? `${user.discipline} Engineering` : `${user.role} Team`,
       phone: '',
@@ -1775,13 +1775,15 @@ export class App {
   private loadUserProfiles(): Record<string, UserProfile> {
     const defaults: Record<string, UserProfile> = Object.fromEntries(this.users.map((user) => [user.id, this.defaultProfile(user)]));
     try {
-      const raw = JSON.parse(localStorage.getItem(this.profileKey) ?? 'null') as Record<string, Partial<UserProfile> & { avatarKey?: string }> | null;
+      const raw = JSON.parse(localStorage.getItem(this.profileKey) ?? 'null') as
+        | Record<string, Partial<UserProfile> & { avatarKey?: string; sex?: string; gender?: string }>
+        | null;
       if (raw) {
         const merged: Record<string, UserProfile> = { ...defaults };
         for (const user of this.users) {
           if (raw[user.id]) {
             const next = { ...defaults[user.id], ...raw[user.id] };
-            next.sex = this.normalizeSex(next.sex, user.id);
+            next.gender = this.normalizeGender(next.gender ?? raw[user.id].sex, user.id);
             merged[user.id] = next;
           }
         }
@@ -1798,19 +1800,19 @@ export class App {
     localStorage.setItem(this.profileKey, JSON.stringify(this.userProfiles));
   }
 
-  private defaultSex(userId: string): Sex {
-    return this.userSexDefaults[userId] ?? 'Male';
+  private defaultGender(userId: string): Gender {
+    return this.userGenderDefaults[userId] ?? 'Male';
   }
 
-  private normalizeSex(sex: string | undefined, userId?: string): Sex {
-    const normalized = String(sex ?? '').trim().toLowerCase();
+  private normalizeGender(gender: string | undefined, userId?: string): Gender {
+    const normalized = String(gender ?? '').trim().toLowerCase();
     if (normalized === 'male') return 'Male';
     if (normalized === 'female') return 'Female';
-    return userId ? this.defaultSex(userId) : 'Male';
+    return userId ? this.defaultGender(userId) : 'Male';
   }
 
-  private avatarForSex(sex: Sex): string {
-    return this.sexAvatarMap[sex] ?? this.sexAvatarMap.Male;
+  private avatarForGender(gender: Gender): string {
+    return this.genderAvatarMap[gender] ?? this.genderAvatarMap.Male;
   }
 
   private loadUserPasswords(): Record<string, string> {

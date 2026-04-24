@@ -1,21 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-label="Male avatar">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Male avatar">
   <defs>
-    <linearGradient id="maleHair" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#2f3c67"/>
-      <stop offset="100%" stop-color="#122041"/>
+    <linearGradient id="shirtMale" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6e98c9"/>
+      <stop offset="100%" stop-color="#38669f"/>
     </linearGradient>
-    <linearGradient id="maleShirt" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#6f99c8"/>
-      <stop offset="100%" stop-color="#3f6ea8"/>
+    <linearGradient id="hairMale" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2f3552"/>
+      <stop offset="100%" stop-color="#111a33"/>
     </linearGradient>
   </defs>
-
-  <path d="M52 294c11-45 47-72 108-72 62 0 98 27 109 72H52z" fill="url(#maleShirt)"/>
-  <path d="M92 113c0-58 29-91 70-91 42 0 71 33 71 91 0 55-23 92-39 109H131c-17-17-39-54-39-109z" fill="url(#maleHair)"/>
-  <ellipse cx="162" cy="132" rx="56" ry="63" fill="#f3cfb2"/>
-  <path d="M107 131c5-15 17-28 32-35l22 17 18-16c20 8 33 20 39 35-1-47-24-75-56-75-33 0-55 28-55 74z" fill="url(#maleHair)"/>
-  <path d="M116 168c8 25 23 39 46 39 22 0 38-14 45-39-11 8-28 12-45 12s-34-4-46-12z" fill="#5f3d34"/>
-  <circle cx="139" cy="130" r="5" fill="#1f2637"/>
-  <circle cx="184" cy="130" r="5" fill="#1f2637"/>
-  <path d="M145 154c6 5 11 7 17 7s11-2 17-7" stroke="#b37f67" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M40 238c8-34 33-55 88-55s80 21 88 55H40z" fill="url(#shirtMale)"/>
+  <path d="M72 102c0-48 22-74 56-74s56 26 56 74c0 42-16 71-31 85h-50c-15-14-31-43-31-85z" fill="url(#hairMale)"/>
+  <ellipse cx="128" cy="112" rx="43" ry="49" fill="#f3cdae"/>
+  <path d="M85 105c4-32 20-50 43-50s39 18 43 50c-9-12-24-20-43-20s-34 8-43 20z" fill="url(#hairMale)"/>
+  <path d="M95 133c5 7 10 11 15 12 4-6 10-9 18-9s14 3 18 9c5-1 10-5 15-12-2 24-14 46-33 46s-31-22-33-46z" fill="#52352d"/>
+  <circle cx="111" cy="110" r="3.8" fill="#1d2438"/>
+  <circle cx="145" cy="110" r="3.8" fill="#1d2438"/>
+  <path d="M114 129c4 3 9 5 14 5s10-2 14-5" stroke="#b9836a" stroke-width="3" fill="none" stroke-linecap="round"/>
 </svg>

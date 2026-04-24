@@ -899,20 +899,17 @@
             <span>{{ currentRoleLabel }}</span>
           </div>
         </div>
-        <div class="profile-avatar-meta">
-          <label>
-            Gender
-            <select name="profileSex" [(ngModel)]="profileForm.sex">
-              <option *ngFor="let option of sexOptions" [value]="option">{{ option }}</option>
-            </select>
-          </label>
-          <p>Avatar updates automatically based on selected gender.</p>
-        </div>
       </div>
       <div class="profile-grid" *ngIf="profileForm">
         <label>
           Display Name
           <input name="profileDisplayName" [(ngModel)]="profileForm.displayName" />
+        </label>
+        <label>
+          Gender
+          <select name="profileGender" [(ngModel)]="profileForm.gender">
+            <option *ngFor="let option of genderOptions" [value]="option">{{ option }}</option>
+          </select>
         </label>
         <label>
           Email
