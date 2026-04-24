@@ -11,6 +11,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { AccordionModule } from 'primeng/accordion';
 import { BadgeModule } from 'primeng/badge';
 import { TimelineModule } from 'primeng/timeline';
+import { StepsModule } from 'primeng/steps';
 import { MenubarModule } from 'primeng/menubar';
 import { PanelMenuModule } from 'primeng/panelmenu';
 import { ButtonModule } from 'primeng/button';
@@ -248,6 +249,12 @@ export class App {
     { label: 'Logout', icon: 'pi pi-sign-out', command: () => this.logout() },
   ];
   workflowStepItems: MenuItem[] = this.workflowSteps.map((step) => ({ label: step.label }));
+
+  get activeWorkflowIndex(): number {
+    if (!this.selectedMoc) return 0;
+    const idx = this.workflowSteps.findIndex((s) => s.key === this.selectedMoc!.workflowState);
+    return idx >= 0 ? idx : 0;
+  }
 
   private rebuildNavMenu(): void {
     const items: MenuItem[] = [

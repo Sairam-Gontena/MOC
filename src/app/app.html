@@ -310,80 +310,12 @@
           <span class="status">{{ selectedMoc.workflowState }}</span>
         </div>
 
-        <section class="panel workflow-map-panel" aria-label="Workflow map">
-          <div class="workflow-map-head">
-            <div>
-              <h3>Workflow Map</h3>
-              <p>1 to 8 progression in the required order.</p>
-            </div>
-            <div class="workflow-map-actions">
-              <button pButton type="button" icon="pi pi-history" label="Routing Tracker" class="p-button-outlined p-button-sm" (click)="showRoutingTracker = true"></button>
-            </div>
+        <section class="panel wf-section">
+          <div class="wf-head">
+            <h3>Workflow Map</h3>
+            <button pButton type="button" icon="pi pi-history" label="Routing Tracker" class="p-button-outlined p-button-sm" (click)="showRoutingTracker = true"></button>
           </div>
-
-          <div class="workflow-stepper" aria-label="Workflow stepper">
-            <div class="workflow-legend" aria-label="Legend">
-              <span class="legend-item"><span class="dot done"></span>Complete</span>
-              <span class="legend-item"><span class="dot current"></span>Current</span>
-              <span class="legend-item"><span class="dot upcoming"></span>Upcoming</span>
-            </div>
-            <!-- Route map: single line with fixed nodes and colored connectors. -->
-            <div class="route-map-svg" aria-label="Workflow route map">
-              <svg viewBox="0 0 1000 140" preserveAspectRatio="none" aria-hidden="true">
-                <defs>
-                  <marker id="arrow-done" markerWidth="12" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L12,6 L0,12 z" fill="#16a34a"></path>
-                  </marker>
-                  <marker id="arrow-current" markerWidth="12" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L12,6 L0,12 z" fill="#2563eb"></path>
-                  </marker>
-                  <marker id="arrow-upcoming" markerWidth="12" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L12,6 L0,12 z" fill="#cbd5e1"></path>
-                  </marker>
-                </defs>
-
-                <ng-container *ngFor="let step of workflowSteps; let i = index">
-                  <line
-                    *ngIf="i < workflowSteps.length - 1"
-                    [attr.x1]="routeMapX(i)"
-                    [attr.y1]="routeMapY"
-                    [attr.x2]="routeMapX(i + 1)"
-                    [attr.y2]="routeMapY"
-                    [attr.stroke]="connectorStroke(selectedMoc, i)"
-                    stroke-width="8"
-                    stroke-linecap="round"
-                    [attr.marker-end]="'url(#' + connectorMarkerId(selectedMoc, i) + ')'"
-                  ></line>
-                </ng-container>
-
-                <ng-container *ngFor="let step of workflowSteps; let i = index">
-                  <circle
-                    [attr.cx]="routeMapX(i)"
-                    [attr.cy]="routeMapY"
-                    r="22"
-                    [attr.fill]="mapNodeFill(selectedMoc, i)"
-                    [attr.stroke]="mapNodeStroke(selectedMoc, i)"
-                    stroke-width="5"
-                  ></circle>
-                  <text [attr.x]="routeMapX(i)" [attr.y]="routeMapY + 6" text-anchor="middle" font-size="18" font-weight="900" fill="#0f172a">
-                    {{ i + 1 }}
-                  </text>
-                </ng-container>
-              </svg>
-
-              <div class="route-label-grid" role="list">
-                <div
-                  *ngFor="let step of workflowSteps; let i = index"
-                  class="route-label"
-                  role="listitem"
-                  [class.is-done]="workflowStepState(selectedMoc, step.key) === 'Complete'"
-                  [class.is-current]="workflowStepState(selectedMoc, step.key) === 'Current'"
-                >
-                  {{ step.label }}
-                </div>
-              </div>
-            </div>
-          </div>
+          <p-steps [model]="workflowStepItems" [activeIndex]="activeWorkflowIndex" [readonly]="true" styleClass="wf-steps"></p-steps>
         </section>
 
         <section class="panel readonly-grid">
