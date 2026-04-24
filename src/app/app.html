@@ -46,7 +46,7 @@
     </div>
     <div class="header-user">
       <button type="button" class="profile-trigger" (click)="openProfileModal()">
-        <img class="profile-avatar-img" [src]="currentAvatarSrc" [alt]="currentDisplayName + ' avatar'" />
+        <p-avatar class="profile-avatar-img" [image]="currentAvatarSrc" size="large" shape="circle" [ariaLabel]="currentDisplayName + ' avatar'"></p-avatar>
         <span class="profile-identity">
           <small>{{ currentRoleLabel }}</small>
           <strong>{{ currentDisplayName }}</strong>
@@ -893,7 +893,7 @@
       </div>
       <div class="profile-avatar-section" *ngIf="profileForm">
         <div class="profile-avatar-preview">
-          <img [src]="profileAvatarSrc(profileForm)" [alt]="profileForm.displayName + ' avatar'" />
+          <p-avatar class="profile-avatar-card" [image]="profileAvatarSrc(profileForm)" size="xlarge" shape="circle" [ariaLabel]="profileForm.displayName + ' avatar'"></p-avatar>
           <div>
             <strong>{{ profileForm.displayName || currentDisplayName }}</strong>
             <span>{{ currentRoleLabel }}</span>

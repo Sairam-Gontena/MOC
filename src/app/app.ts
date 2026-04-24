@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, ElementRef, HostListener, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { AvatarModule } from 'primeng/avatar';
 
 type View = 'login' | 'dashboard' | 'detail' | 'admin' | 'actions';
 type UserRole = 'Owner' | 'Evaluator' | 'Manager' | 'Admin';
@@ -167,7 +168,7 @@ interface DocumentPreview {
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AvatarModule],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
@@ -212,8 +213,8 @@ export class App {
     admin1: 'Female',
   };
   readonly genderAvatarMap: Record<Gender, string> = {
-    Male: 'avatars/avatar-male.svg',
-    Female: 'avatars/avatar-female.svg',
+    Male: 'avatars/avatar-male.jpg',
+    Female: 'avatars/avatar-female.jpg',
   };
   readonly demoPassword = 'demo123';
 
