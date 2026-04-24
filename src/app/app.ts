@@ -143,6 +143,7 @@ interface FileAttachment {
 
 interface UserProfile {
   displayName: string;
+  avatarKey: string;
   email: string;
   department: string;
   phone: string;
@@ -196,6 +197,16 @@ export class App {
     { id: 'ops1', name: 'Oscar', role: 'Evaluator', discipline: 'Operations' },
     { id: 'manager1', name: 'Morgan', role: 'Manager' },
     { id: 'admin1', name: 'Ada', role: 'Admin' },
+  ];
+  readonly avatarOptions: Array<{ key: string; label: string; src: string }> = [
+    { key: 'a1', label: 'Blue', src: 'avatars/avatar-01.svg' },
+    { key: 'a2', label: 'Navy', src: 'avatars/avatar-02.svg' },
+    { key: 'a3', label: 'Teal', src: 'avatars/avatar-03.svg' },
+    { key: 'a4', label: 'Green', src: 'avatars/avatar-04.svg' },
+    { key: 'a5', label: 'Indigo', src: 'avatars/avatar-05.svg' },
+    { key: 'a6', label: 'Purple', src: 'avatars/avatar-06.svg' },
+    { key: 'a7', label: 'Amber', src: 'avatars/avatar-07.svg' },
+    { key: 'a8', label: 'Coral', src: 'avatars/avatar-08.svg' },
   ];
   readonly demoPassword = 'demo123';
 
@@ -344,6 +355,12 @@ export class App {
     return profile?.displayName?.trim() || this.currentUser.name;
   }
 
+  get currentAvatarSrc(): string {
+    if (!this.currentUser) return this.avatarOptions[0].src;
+    const avatarKey = this.userProfiles[this.currentUser.id]?.avatarKey ?? this.defaultAvatarKey(this.currentUser.id);
+    return this.avatarSrc(avatarKey);
+  }
+
   loginWithPassword(): void {
     const username = this.loginUsername.trim().toLowerCase();
     const user = this.users.find((entry) => entry.name.toLowerCase() === username);
@@ -417,9 +434,11 @@ export class App {
 
   saveProfile(): void {
     if (!this.currentUser || !this.profileForm) return;
+    const avatarKey = this.normalizeAvatarKey(this.profileForm.avatarKey, this.currentUser.id);
     const profile = {
       ...this.profileForm,
       displayName: this.profileForm.displayName.trim() || this.currentUser.name,
+      avatarKey,
       email: this.profileForm.email.trim(),
       department: this.profileForm.department.trim(),
       phone: this.profileForm.phone.trim(),
@@ -435,6 +454,15 @@ export class App {
     this.saveUserProfiles();
     this.profileStatus = 'Profile saved.';
     this.profileError = '';
+  }
+
+  selectAvatar(avatarKey: string): void {
+    if (!this.profileForm) return;
+    this.profileForm.avatarKey = avatarKey;
+  }
+
+  avatarSrc(avatarKey: string): string {
+    return this.avatarOptions.find((entry) => entry.key === avatarKey)?.src ?? this.avatarOptions[0].src;
   }
 
   updatePassword(): void {
@@ -1734,6 +1762,7 @@ export class App {
   private defaultProfile(user: DemoUser): UserProfile {
     return {
       displayName: user.name,
+      avatarKey: this.defaultAvatarKey(user.id),
       email: `${user.name.toLowerCase()}@chevron.com`,
       department: user.discipline ? `${user.discipline} Engineering` : `${user.role} Team`,
       phone: '',
@@ -1749,7 +1778,11 @@ export class App {
       if (raw) {
         const merged: Record<string, UserProfile> = { ...defaults };
         for (const user of this.users) {
-          if (raw[user.id]) merged[user.id] = { ...defaults[user.id], ...raw[user.id] };
+          if (raw[user.id]) {
+            const next = { ...defaults[user.id], ...raw[user.id] };
+            next.avatarKey = this.normalizeAvatarKey(next.avatarKey, user.id);
+            merged[user.id] = next;
+          }
         }
         return merged;
       }
@@ -1762,6 +1795,17 @@ export class App {
 
   private saveUserProfiles(): void {
     localStorage.setItem(this.profileKey, JSON.stringify(this.userProfiles));
+  }
+
+  private defaultAvatarKey(userId: string): string {
+    const ordered = this.users.map((user) => user.id);
+    const idx = Math.max(0, ordered.indexOf(userId));
+    return this.avatarOptions[idx % this.avatarOptions.length].key;
+  }
+
+  private normalizeAvatarKey(avatarKey: string | undefined, userId: string): string {
+    if (avatarKey && this.avatarOptions.some((entry) => entry.key === avatarKey)) return avatarKey;
+    return this.defaultAvatarKey(userId);
   }
 
   private loadUserPasswords(): Record<string, string> {

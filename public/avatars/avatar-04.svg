@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Avatar 04">
+  <defs>
+    <linearGradient id="g4" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#257a2f"/>
+      <stop offset="100%" stop-color="#63b66d"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="32" fill="url(#g4)"/>
+  <circle cx="32" cy="23" r="10.6" fill="#efc8a5"/>
+  <path d="M14 56c2.2-10.5 9.4-16 18-16 8.7 0 15.8 5.5 18 16" fill="#264236"/>
+  <path d="M22.5 20c2.6-3.9 6.3-6 9.5-6s6.8 2 9.5 6c-2.8-.9-6.1-1.5-9.5-1.5s-6.7.5-9.5 1.5z" fill="#282c34"/>
+  <circle cx="28.2" cy="23.5" r="1.1" fill="#4a3d34"/>
+  <circle cx="35.8" cy="23.5" r="1.1" fill="#4a3d34"/>
+</svg>
