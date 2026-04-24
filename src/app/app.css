@@ -184,13 +184,13 @@ h1 {
 .profile-avatar-img {
   width: 46px;
   height: 46px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 10px;
+  border: 0;
   flex-shrink: 0;
   object-fit: contain;
-  background: rgba(255, 255, 255, 0.12);
-  padding: 2px;
-  box-shadow: 0 8px 18px rgba(10, 41, 71, 0.3);
+  background: transparent;
+  padding: 0;
+  box-shadow: 0 6px 14px rgba(10, 41, 71, 0.28);
 }
 
 .profile-identity {
@@ -1252,10 +1252,11 @@ td input {
   width: 64px;
   height: 64px;
   border-radius: 12px;
-  border: 1px solid #ccdaea;
+  border: 0;
   object-fit: contain;
-  background: #fff;
-  padding: 3px;
+  background: transparent;
+  padding: 0;
+  box-shadow: 0 8px 18px rgba(21, 44, 70, 0.14);
 }
 
 .profile-avatar-preview strong,

@@ -1,19 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Male avatar">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-label="Male avatar">
   <defs>
-    <linearGradient id="mShirt" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#2f67b4"/>
-      <stop offset="100%" stop-color="#5d8ed1"/>
+    <linearGradient id="maleHair" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2f3c67"/>
+      <stop offset="100%" stop-color="#122041"/>
     </linearGradient>
-    <linearGradient id="mHair" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1f2e4c"/>
-      <stop offset="100%" stop-color="#0f1b34"/>
+    <linearGradient id="maleShirt" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6f99c8"/>
+      <stop offset="100%" stop-color="#3f6ea8"/>
     </linearGradient>
   </defs>
-  <path d="M17 120c5-21 22-34 47-34s42 13 47 34H17z" fill="url(#mShirt)"/>
-  <ellipse cx="64" cy="60" rx="28" ry="31" fill="#f2c9a5"/>
-  <path d="M37 62c0-24 12-38 27-38s27 14 27 38c-2-8-7-12-12-15l-5 8-10-8c-9 5-16 11-27 15z" fill="url(#mHair)"/>
-  <path d="M49 77c3 8 8 12 15 12s12-4 15-12c-4 3-9 5-15 5s-11-2-15-5z" fill="#704b3b"/>
-  <circle cx="54" cy="62" r="2.5" fill="#2b2b2b"/>
-  <circle cx="74" cy="62" r="2.5" fill="#2b2b2b"/>
-  <path d="M56 73c2.5 2 5.5 3 8 3s5.5-1 8-3" stroke="#b37b62" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <path d="M52 294c11-45 47-72 108-72 62 0 98 27 109 72H52z" fill="url(#maleShirt)"/>
+  <path d="M92 113c0-58 29-91 70-91 42 0 71 33 71 91 0 55-23 92-39 109H131c-17-17-39-54-39-109z" fill="url(#maleHair)"/>
+  <ellipse cx="162" cy="132" rx="56" ry="63" fill="#f3cfb2"/>
+  <path d="M107 131c5-15 17-28 32-35l22 17 18-16c20 8 33 20 39 35-1-47-24-75-56-75-33 0-55 28-55 74z" fill="url(#maleHair)"/>
+  <path d="M116 168c8 25 23 39 46 39 22 0 38-14 45-39-11 8-28 12-45 12s-34-4-46-12z" fill="#5f3d34"/>
+  <circle cx="139" cy="130" r="5" fill="#1f2637"/>
+  <circle cx="184" cy="130" r="5" fill="#1f2637"/>
+  <path d="M145 154c6 5 11 7 17 7s11-2 17-7" stroke="#b37f67" stroke-width="4" fill="none" stroke-linecap="round"/>
 </svg>
