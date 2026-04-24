@@ -250,17 +250,24 @@ export class App {
   workflowStepItems: MenuItem[] = this.workflowSteps.map((step) => ({ label: step.label }));
 
   // Fixed positions for an 8-step "route map" (snake layout) rendered as SVG.
-  // Order matches workflowSteps: 1->2->3->4 then down to 5->6->7->8.
+  // Map is drawn as:
+  // Row 1: 1 -> 2 -> 3 -> 4
+  // Then down connector
+  // Row 2: 5 <- 6 <- 7 <- 8
   readonly workflowMapPositions: Array<{ x: number; y: number }> = [
     { x: 120, y: 64 }, // 1 Initiated
     { x: 360, y: 64 }, // 2 Evaluation
     { x: 600, y: 64 }, // 3 Approval to Implement
     { x: 840, y: 64 }, // 4 Implementation
-    { x: 840, y: 190 }, // 5 PSSR (down)
-    { x: 600, y: 190 }, // 6 Approval for Start Up (left)
-    { x: 360, y: 190 }, // 7 Ready for Closure (left)
-    { x: 120, y: 190 }, // 8 Closed (left)
+    { x: 120, y: 190 }, // 5 PSSR
+    { x: 360, y: 190 }, // 6 Approval for Start Up
+    { x: 600, y: 190 }, // 7 Ready for Closure
+    { x: 840, y: 190 }, // 8 Closed
   ];
+
+  // Node visit order for drawing connectors on the map:
+  // 1->2->3->4 then down to 8 then 8->7->6->5 (arrows left on row 2).
+  readonly workflowMapPathOrder: number[] = [0, 1, 2, 3, 7, 6, 5, 4];
 
   private rebuildNavMenu(): void {
     const items: MenuItem[] = [
@@ -812,6 +819,8 @@ export class App {
 
   connectorState(record: MocRecord, fromIndex: number): 'done' | 'current' | 'upcoming' {
     const currentIndex = this.workflowStepIndex(record);
+    // fromIndex is the connector index along the route map path. We color connectors
+    // by workflow progression (0->1, 1->2, ...), independent of node placement.
     if (fromIndex < currentIndex - 1) return 'done';
     if (fromIndex === currentIndex - 1) return 'current';
     return 'upcoming';
@@ -843,6 +852,16 @@ export class App {
     if (state === 'Complete') return '#16a34a';
     if (state === 'Current') return '#2563eb';
     return '#cbd5e1';
+  }
+
+  routeMapLabelLines(label: string): string[] {
+    // Keep the route map clean: hard-wrap known long labels, otherwise return as-is.
+    const normalized = label.trim();
+    if (normalized.toLowerCase() === 'approval to implement') return ['Approval to', 'Implement'];
+    if (normalized.toLowerCase() === 'approval for start up') return ['Approval for', 'Start Up'];
+    if (normalized.toLowerCase() === 'ready for closure') return ['Ready for', 'Closure'];
+    if (normalized.toLowerCase() === 'implementation') return ['Implementation'];
+    return [normalized];
   }
 
   workflowProgressLabel(record: MocRecord): string {
