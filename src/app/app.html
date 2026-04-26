@@ -606,129 +606,173 @@
 
         <div class="help-flow">
 
+          <!-- Step 1: Initiation -->
           <div class="help-step hs-initiated">
             <div class="hs-badge">1</div>
             <div class="hs-body">
               <h4>Initiation</h4>
               <span class="hs-role">Role: MOC Owner</span>
-              <p>The Owner identifies a proposed change and initiates an MOC. Fills in title, description, basis, disciplines, target implementation date, and uploads a supporting document.</p>
+              <p>The Owner identifies a proposed change and initiates an MOC. Fills in title, description, basis / justification, disciplines involved, target implementation date, and uploads a supporting document.</p>
               <ul>
-                <li>Select all relevant engineering disciplines</li>
-                <li>A confirmation popup appears before submission — once submitted it cannot be edited</li>
-                <li>System automatically routes to assigned Evaluators</li>
+                <li>Select all relevant engineering disciplines — each discipline gets its own evaluator assigned</li>
+                <li>A confirmation popup appears before submission</li>
+                <li>System automatically routes to assigned Evaluators once submitted</li>
               </ul>
             </div>
           </div>
           <div class="hs-connector"><i class="pi pi-arrow-down"></i></div>
 
+          <!-- Step 2: Evaluation -->
           <div class="help-step hs-eval">
             <div class="hs-badge">2</div>
             <div class="hs-body">
               <h4>Evaluation</h4>
               <span class="hs-role">Role: Evaluators (discipline-specific)</span>
-              <p>Each assigned Evaluator completes their discipline checklist and may raise action items. Evaluation action items assigned to the evaluator themselves must be closed before they can complete their evaluation.</p>
+              <p>Each assigned Evaluator independently completes their discipline checklist and may raise action items. Evaluators work in parallel — one does not wait for another.</p>
               <ul>
-                <li>Complete all required checklist items</li>
-                <li>Raise Evaluation, Pre-Startup, or Post-Startup action items as needed</li>
-                <li>Action items assigned to others only block the overall MOC from advancing — not the individual evaluator</li>
-                <li>All Evaluation-phase action items must be closed before the Owner can advance</li>
+                <li>Complete all required checklist items for your discipline</li>
+                <li>Raise <strong>Evaluation</strong>, <strong>Pre-Startup</strong>, or <strong>Post-Startup</strong> action items as needed — choose the correct phase:</li>
               </ul>
+              <table class="help-table">
+                <thead><tr><th>Phase</th><th>Who Can Raise</th><th>Must Be Closed Before</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Evaluation</strong></td><td>Any Evaluator (during Evaluation)</td><td>Owner submits for Approval to Implement</td></tr>
+                  <tr><td><strong>Pre-Startup</strong></td><td>Evaluators (Evaluation) or Operations (PSSR)</td><td>PSSR submission</td></tr>
+                  <tr><td><strong>Post-Startup</strong></td><td>Evaluators (Evaluation) or Operations (PSSR)</td><td>Owner closes the MOC</td></tr>
+                </tbody>
+              </table>
+              <ul>
+                <li>Action items assigned to yourself must be closed before you can click <strong>Mark Evaluation Complete</strong></li>
+                <li>Action items assigned to others block the MOC from advancing but do not block your individual evaluation</li>
+                <li>All Evaluation-phase items across all disciplines must be closed before the Owner can submit for approval</li>
+              </ul>
+              <div class="help-highlight">
+                <i class="pi pi-share-alt"></i>
+                <div>
+                  <strong>Further Action Items</strong> — If you need another person to carry out part of your action item, click <strong>Raise Further AI</strong>. A new linked action item is created for the other person. <em>Your original item stays open — you must close it yourself normally</em> (add a comment and click Complete). Both items must be closed before the stage can advance.
+                </div>
+              </div>
             </div>
           </div>
           <div class="hs-connector"><i class="pi pi-arrow-down"></i></div>
 
+          <!-- Step 3: Approval to Implement -->
           <div class="help-step hs-approval">
             <div class="hs-badge">3</div>
             <div class="hs-body">
               <h4>Approval to Implement</h4>
               <span class="hs-role">Role: Owner → Manager</span>
-              <p>Once all evaluations and evaluation action items are complete, the Owner submits for approval. The Manager then reviews and decides.</p>
+              <p>Once all discipline evaluations and all Evaluation-phase action items are complete, the Owner submits for Manager approval.</p>
               <ul>
-                <li><strong>Owner</strong> — clicks "Submit for Approval to Implement"</li>
-                <li><strong>Manager</strong> — reviews evaluation results and approves OR rejects with a mandatory comment</li>
-                <li>If rejected, all evaluations are reset. Owner revises and resubmits</li>
-                <li>If cancelled by manager, the MOC is permanently closed</li>
-                <li>Routing tracker records all decisions with timestamps and comments</li>
+                <li><strong>Owner</strong> — clicks "Submit for Approval to Implement" in the Workflow Actions panel</li>
+                <li><strong>Manager</strong> — reviews evaluation results, action item outcomes, and approval history, then approves or rejects with a mandatory written reason</li>
+                <li><strong>If Approved</strong> — MOC moves to Implementation</li>
+                <li><strong>If Rejected</strong> — MOC enters <em>Rejected</em> state and returns to the Owner for revision (see below)</li>
+                <li>All decisions are permanently recorded in Approval History</li>
               </ul>
+              <div class="help-highlight help-highlight-red">
+                <i class="pi pi-undo"></i>
+                <div>
+                  <strong>Rejection &amp; Revision Flow</strong> — When a Manager rejects, the MOC status becomes <em>Rejected</em> and routes back to the Owner. The Owner sees the Manager's rejection reason, clicks <strong>Revise MOC Details</strong>, edits the initiation fields (title, description, basis, disciplines, date, document), and clicks <strong>Submit Revised MOC</strong>. The MOC re-enters Evaluation with all discipline evaluations reset. A <strong>Revision History</strong> block records every field change (old → new) and the rejection reason for the full audit trail. This can repeat as many times as needed.
+                </div>
+              </div>
             </div>
           </div>
           <div class="hs-connector"><i class="pi pi-arrow-down"></i></div>
 
+          <!-- Step 4: Implementation -->
           <div class="help-step hs-impl">
             <div class="hs-badge">4</div>
             <div class="hs-body">
               <h4>Implementation</h4>
               <span class="hs-role">Role: Owner</span>
-              <p>Once the Manager approves, the Owner must manually click "Begin Implementation" to start work. This gives the Owner full control over when physical work begins.</p>
+              <p>After Manager approval the Owner drives the physical implementation. The Owner manually controls when work starts and when it is complete.</p>
               <ul>
-                <li><strong>Begin Implementation</strong> — Owner confirms work has started</li>
-                <li><strong>Mark Implementation Complete</strong> — Owner confirms all field work is done</li>
+                <li><strong>Mark Implementation Complete</strong> — Owner confirms all field work, procedure updates, and drawing revisions are done</li>
                 <li>The MOC then routes to PSSR</li>
               </ul>
             </div>
           </div>
           <div class="hs-connector"><i class="pi pi-arrow-down"></i></div>
 
+          <!-- Step 5: PSSR -->
           <div class="help-step hs-pssr">
             <div class="hs-badge">5</div>
             <div class="hs-body">
               <h4>PSSR (Pre-Startup Safety Review)</h4>
-              <span class="hs-role">Role: Operations Supervisor → Owner</span>
-              <p>Operations completes the PSSR checklist. Pre-Startup action items (raised earlier) must all be closed during this phase before PSSR can be submitted.</p>
+              <span class="hs-role">Role: Operations (Oscar) → Owner</span>
+              <p>Operations completes the PSSR checklist and closes all Pre-Startup action items before the MOC can advance.</p>
               <ul>
-                <li>Pre-Startup action items are <strong>only completable during the PSSR step</strong></li>
-                <li>Only the person assigned to the action item can complete it</li>
-                <li>Operations clicks "Submit PSSR for Review" — MOC <em>stays in PSSR state</em> with status "PSSR Completed"</li>
-                <li>Owner reviews and then manually clicks "Submit for Startup Approval" to advance</li>
+                <li>Complete all required PSSR checklist items</li>
+                <li>Close all Pre-Startup action items assigned to you — these are <strong>only completable during PSSR</strong></li>
+                <li>Operations can also <strong>raise new Pre-Startup or Post-Startup action items</strong> during this stage if additional work is identified</li>
+                <li>Click <strong>Submit PSSR for Review</strong> — the Owner reviews the outcome and submits for Manager startup approval</li>
               </ul>
             </div>
           </div>
           <div class="hs-connector"><i class="pi pi-arrow-down"></i></div>
 
+          <!-- Step 6: Approval for Start Up -->
           <div class="help-step hs-startup">
             <div class="hs-badge">6</div>
             <div class="hs-body">
               <h4>Approval for Start Up</h4>
               <span class="hs-role">Role: Manager → Owner</span>
-              <p>Manager reviews PSSR results and approves or rejects startup with mandatory comments.</p>
+              <p>Manager reviews the PSSR results and approves or rejects startup with mandatory written comments.</p>
               <ul>
-                <li><strong>Approve Start Up</strong> — Owner proceeds to Ready for Closure / Post-Startup Review</li>
-                <li><strong>Reject — Send Back to PSSR</strong> — with mandatory reason, for additional review</li>
-                <li>All decisions are recorded in Approval History at the bottom of the MOC page</li>
+                <li><strong>Approve Start Up</strong> — MOC moves to Ready for Closure; Owner manages Post-Startup review</li>
+                <li><strong>Reject — Send Back to PSSR</strong> — PSSR checklist resets; Operations must redo the review</li>
+                <li>All decisions are recorded in Approval History</li>
               </ul>
             </div>
           </div>
           <div class="hs-connector"><i class="pi pi-arrow-down"></i></div>
 
+          <!-- Step 7: Ready for Closure -->
           <div class="help-step hs-closure">
             <div class="hs-badge">7</div>
             <div class="hs-body">
               <h4>Ready for Closure / Post-Startup Review</h4>
               <span class="hs-role">Role: Assigned Action Item Owners → Owner</span>
-              <p>Post-Startup action items (raised during PSSR) must be completed by their assigned persons during this phase. Only then can the Owner close the MOC.</p>
+              <p>All Post-Startup action items must be closed by their assigned persons before the Owner can close the MOC.</p>
               <ul>
-                <li>Post-Startup action items are <strong>only completable at this stage</strong></li>
+                <li>Post-Startup items are <strong>only completable at this stage</strong></li>
                 <li>Only the assigned person can mark their own action item complete</li>
-                <li>Completion requires a closure comment (and optionally an evidence file)</li>
-                <li>Owner closes the MOC once all post-startup items are done</li>
+                <li>Each closure requires a comment — an evidence file upload is optional</li>
+                <li>Owner clicks <strong>Close MOC</strong> once all post-startup items are done</li>
               </ul>
             </div>
           </div>
           <div class="hs-connector"><i class="pi pi-arrow-down"></i></div>
 
+          <!-- Closed -->
           <div class="help-step hs-closed">
             <div class="hs-badge"><i class="pi pi-check"></i></div>
             <div class="hs-body">
               <h4>Closed</h4>
               <span class="hs-role">Final State</span>
-              <p>The MOC is closed with a closure date, closing user, and full audit trail. All history is preserved in the routing tracker.</p>
+              <p>The MOC is permanently closed. The complete audit trail — initiation fields, all evaluations, checklists, action items, approvals, PSSR outcomes, revision history, and closure timestamp — is locked and read-only.</p>
             </div>
           </div>
 
         </div>
 
-        <!-- Key Rules -->
+        <!-- Assigned Tasks & Your Status -->
         <section class="panel" style="margin-top:24px">
+          <div class="section-head sh-blue">
+            <div class="section-head-left">
+              <h3><i class="pi pi-list-check"></i> Assigned Tasks &amp; Your Status</h3>
+            </div>
+          </div>
+          <div class="help-rules">
+            <div class="help-rule"><i class="pi pi-folder-open" style="color:#1463A5"></i><span><strong>Full history, not just active</strong> — Assigned Tasks shows every MOC you have ever been involved in (as evaluator, manager, or action item assignee) — past and present.</span></div>
+            <div class="help-rule"><i class="pi pi-tag" style="color:#f59e0b"></i><span><strong>Your Status column</strong> — Shows your personal involvement status: <em>Action Required</em> (awaiting your decision), <em>Evaluation Complete</em>, <em>Approved (Implement / Start Up)</em>, <em>Evaluation Pending</em>, <em>Action Items Open / Complete</em>.</span></div>
+            <div class="help-rule"><i class="pi pi-briefcase" style="color:#8b5cf6"></i><span><strong>Manager tracking</strong> — After approving a MOC the Manager can continue to track it through the full lifecycle in Assigned Tasks. The approval gate record is always preserved.</span></div>
+          </div>
+        </section>
+
+        <!-- Key Rules -->
+        <section class="panel" style="margin-top:16px">
           <div class="section-head sh-amber">
             <div class="section-head-left">
               <h3><i class="pi pi-shield"></i> Key Rules &amp; Guardrails</h3>
@@ -736,10 +780,12 @@
           </div>
           <div class="help-rules">
             <div class="help-rule"><i class="pi pi-lock" style="color:#1463A5"></i><span><strong>Assigned person only</strong> — Action items can only be completed by the person they are assigned to. No exceptions except Admin.</span></div>
-            <div class="help-rule"><i class="pi pi-clock" style="color:#f59e0b"></i><span><strong>Stage enforcement</strong> — Pre-Startup items: PSSR step only. Post-Startup items: Ready for Closure step only. Evaluation items: Evaluation step only.</span></div>
-            <div class="help-rule"><i class="pi pi-info-circle" style="color:#10b981"></i><span><strong>Mandatory comments</strong> — Manager rejections and cancellations require a written reason before the action button activates.</span></div>
-            <div class="help-rule"><i class="pi pi-history" style="color:#8b5cf6"></i><span><strong>Full audit trail</strong> — All state changes, approvals, and rejections are recorded with timestamps and user identity in the Routing Tracker.</span></div>
-            <div class="help-rule"><i class="pi pi-user" style="color:#ef4444"></i><span><strong>Owner controls advancement</strong> — At key gates (post-approval, post-PSSR completion) the Owner must manually advance the MOC. Nothing advances automatically.</span></div>
+            <div class="help-rule"><i class="pi pi-clock" style="color:#f59e0b"></i><span><strong>Stage enforcement</strong> — Evaluation items: Evaluation step only. Pre-Startup items: PSSR step only. Post-Startup items: Ready for Closure step only.</span></div>
+            <div class="help-rule"><i class="pi pi-share-alt" style="color:#6366f1"></i><span><strong>Further Action Items</strong> — Raising a Further AI creates a new linked item for another person but does <em>not</em> auto-close the original. You must close your original item yourself. Both must be closed before the stage advances.</span></div>
+            <div class="help-rule"><i class="pi pi-info-circle" style="color:#10b981"></i><span><strong>Mandatory comments</strong> — Manager rejections (both gates) require a written reason before the action button activates.</span></div>
+            <div class="help-rule"><i class="pi pi-undo" style="color:#ef4444"></i><span><strong>Rejection preserves history</strong> — Every Manager rejection creates a Revision History entry on the MOC. When the Owner resubmits, all field changes are diffed and permanently recorded (old value → new value).</span></div>
+            <div class="help-rule"><i class="pi pi-history" style="color:#8b5cf6"></i><span><strong>Full audit trail</strong> — All state changes, approvals, rejections, revisions, and action item closures are timestamped and recorded in the Routing Tracker.</span></div>
+            <div class="help-rule"><i class="pi pi-user" style="color:#ef4444"></i><span><strong>Owner controls advancement</strong> — After approvals and PSSR completion the Owner must manually advance the MOC. Nothing moves forward automatically.</span></div>
           </div>
         </section>
       </ng-container>
