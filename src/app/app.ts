@@ -23,7 +23,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DividerModule } from 'primeng/divider';
 
-type View = 'login' | 'dashboard' | 'detail' | 'admin' | 'actions';
+type View = 'login' | 'dashboard' | 'detail' | 'admin' | 'actions' | 'help';
 type UserRole = 'Owner' | 'Evaluator' | 'Manager' | 'Admin';
 type WorkflowState =
   | 'Evaluation'
@@ -43,6 +43,7 @@ interface DemoUser {
   name: string;
   role: UserRole;
   discipline?: string;
+  title?: string;
 }
 
 interface ChecklistItem {
@@ -86,6 +87,7 @@ interface ActionItem {
   evidenceMimeType?: string;
   completedByUserId?: string;
   completedAt?: string;
+  priority?: 'Critical' | 'High' | 'Normal';
 }
 
 interface WorkflowEvent {
@@ -132,6 +134,14 @@ interface MocRecord {
   lastUpdatedDate: string;
   closureDate?: string;
   closedByUserId?: string;
+  pssrSubmitted?: boolean;
+  reworkSnapshot?: {
+    title: string;
+    description: string;
+    basis: string;
+    implementationDate: string;
+    disciplines: string[];
+  };
 }
 
 interface InitiationForm {
@@ -218,6 +228,7 @@ export class App {
   readonly sessionKey = 'mocAngularRbacSession.v1';
   readonly profileKey = 'mocAngularUserProfiles.v1';
   readonly passwordKey = 'mocAngularUserPasswords.v1';
+  readonly notifReadKey = 'mocAngularReadNotifs.v1';
   readonly disciplineOptions = ['Mechanical', 'Process', 'Electrical', 'Operations', 'HSE', 'Instrumentation', 'Environmental'];
   readonly workflowSteps: Array<{ key: WorkflowState | 'Initiated'; label: string }> = [
     { key: 'Initiated', label: 'Initiated' },
@@ -226,19 +237,19 @@ export class App {
     { key: 'Implementation', label: 'Implementation' },
     { key: 'PSSR', label: 'PSSR' },
     { key: 'Approval for Start Up', label: 'Approval for Start Up' },
-    { key: 'Ready for Closure', label: 'Ready for Closure' },
+    { key: 'Ready for Closure', label: 'Ready for Closure / Post-Startup Review' },
     { key: 'Closed', label: 'Closed' },
   ];
   readonly users: DemoUser[] = [
-    { id: 'owner1', name: 'Olivia', role: 'Owner' },
-    { id: 'owner2', name: 'Owen', role: 'Owner' },
-    { id: 'mech1', name: 'Mike', role: 'Evaluator', discipline: 'Mechanical' },
-    { id: 'process1', name: 'Priya', role: 'Evaluator', discipline: 'Process' },
-    { id: 'env1', name: 'Evan', role: 'Evaluator', discipline: 'Environmental' },
-    { id: 'hse1', name: 'Harper', role: 'Evaluator', discipline: 'HSE' },
-    { id: 'ops1', name: 'Oscar', role: 'Evaluator', discipline: 'Operations' },
-    { id: 'manager1', name: 'Morgan', role: 'Manager' },
-    { id: 'admin1', name: 'Ada', role: 'Admin' },
+    { id: 'owner1', name: 'Olivia', role: 'Owner', title: 'Process Engineer' },
+    { id: 'owner2', name: 'Owen', role: 'Owner', title: 'Mechanical Engineer' },
+    { id: 'mech1', name: 'Mike', role: 'Evaluator', discipline: 'Mechanical', title: 'Sr. Mechanical Inspector' },
+    { id: 'process1', name: 'Priya', role: 'Evaluator', discipline: 'Process', title: 'Process Safety Engineer' },
+    { id: 'env1', name: 'Evan', role: 'Evaluator', discipline: 'Environmental', title: 'Environmental Specialist' },
+    { id: 'hse1', name: 'Harper', role: 'Evaluator', discipline: 'HSE', title: 'HSE Advisor' },
+    { id: 'ops1', name: 'Oscar', role: 'Evaluator', discipline: 'Operations', title: 'Operations Supervisor' },
+    { id: 'manager1', name: 'Morgan', role: 'Manager', title: 'Area Manager' },
+    { id: 'admin1', name: 'Ada', role: 'Admin', title: 'System Administrator' },
   ];
 
   navMenuItems: MenuItem[] = [];
@@ -256,22 +267,38 @@ export class App {
         icon: 'pi pi-home',
         command: () => this.openDashboard(),
       },
-      {
-        label: 'My Action Items',
+    ];
+
+    // My Action Items — not shown for Admin (they see All MOCs on dashboard)
+    if (this.currentUser?.role !== 'Admin') {
+      const openActionItems = this.myActionItems.filter(r => !r.item.complete).length;
+      const pendingAssigned = this.assignedRecords.filter(r => r.status === 'Open').length;
+      const totalPending = openActionItems + pendingAssigned;
+      items.push({
+        label: 'Assigned Tasks',
         icon: 'pi pi-list-check',
         command: () => this.openActionBoard(),
-        badge: this.myActionItems.length ? String(this.myActionItems.length) : undefined,
-        badgeStyleClass: this.myActionItems.length ? 'p-badge-info' : undefined,
-      },
-      {
+        badge: totalPending ? String(totalPending) : undefined,
+        badgeStyleClass: totalPending ? 'p-badge-danger' : undefined,
+      });
+    }
+
+    if (this.currentUser?.role !== 'Admin') {
+      items.push({
         label: 'Create New MOC',
         icon: 'pi pi-plus',
         disabled: !this.canInitiate(),
         command: () => this.openCreate(),
-      },
-    ];
+      });
+    }
 
     if (this.currentUser?.role === 'Admin') {
+      items.push({
+        label: 'Create New MOC',
+        icon: 'pi pi-plus',
+        disabled: !this.canInitiate(),
+        command: () => this.openCreate(),
+      });
       items.push({
         label: 'Checklist Admin',
         icon: 'pi pi-cog',
@@ -280,9 +307,9 @@ export class App {
     }
 
     items.push({
-      label: 'Help',
+      label: 'Help & Process Guide',
       icon: 'pi pi-question-circle',
-      disabled: true,
+      command: () => this.openHelp(),
     });
 
     this.navMenuItems = items;
@@ -302,10 +329,17 @@ export class App {
   loginUsername = '';
   loginPassword = '';
   loginError = '';
+  loginTab: 'credentials' | 'quick' = 'quick';
   showCreateModal = false;
   showProfileModal = false;
   showPreviewModal = false;
   showRoutingTracker = false;
+  showNotifPanel = false;
+  showDemoScript = false;
+  sidebarCollapsed = false;
+  kpiFilter: 'all' | 'open' | 'waiting' | 'closed' = 'all';
+  filterStatus = '';
+  filterPhase = '';
   mocRowsLimit = 100;
   mocFilterText = '';
   currentUser: DemoUser | null = this.loadSession();
@@ -320,8 +354,9 @@ export class App {
   submitAttempted = false;
   isSubmitting = false;
   actionLoading = false;
+  pageLoading = false;
   form: InitiationForm = this.blankForm();
-  newAction: Pick<ActionItem, 'phase' | 'description' | 'assigneeId' | 'dueDate'> = this.blankAction();
+  newAction: Pick<ActionItem, 'phase' | 'description' | 'assigneeId' | 'dueDate' | 'priority'> = this.blankAction();
   actionComments: Record<string, string> = {};
   actionEvidence: Record<string, FileAttachment | undefined> = {};
   checklistTemplates: ChecklistTemplates = this.loadChecklistTemplates();
@@ -330,6 +365,15 @@ export class App {
   startupRejectionComment = '';
   cancelComment = '';
   reworkNotice = '';
+  readNotifKeys = new Set<string>(this.loadReadNotifKeys());
+  sortColumn = '';
+  sortDir: 1 | -1 = 1;
+  formOwner = 'owner1';
+  reworkSummaryCollapsed = true;
+  workflowPanelCollapsed = false;
+  mocPage = 1;
+  mocPageSize = 20;
+  dismissedNotifKeys = new Set<string>();
   userProfiles: Record<string, UserProfile> = this.loadUserProfiles();
   userPasswords: Record<string, string> = this.loadUserPasswords();
   private lastFocusedElement: HTMLElement | null = null;
@@ -358,23 +402,27 @@ export class App {
     return this.users.map((user) => user.name);
   }
 
+  /** My MOCs = only MOCs this user created as Owner. Admin sees all. */
   get visibleRecords(): MocRecord[] {
     if (!this.currentUser) return [];
     if (this.currentUser.role === 'Admin') return this.records;
-    if (this.currentUser.role === 'Owner') return this.records.filter((record) => record.ownerId === this.currentUser?.id);
-    if (this.currentUser.role === 'Evaluator') {
-      return this.records.filter(
-        (record) =>
-          record.evaluatorIds.includes(this.currentUser?.id ?? '') ||
-          record.actionItems.some((item) => item.assigneeId === this.currentUser?.id || item.createdBy === this.currentUser?.id) ||
-          (this.currentUser?.discipline === 'Operations' && record.workflowState === 'PSSR'),
-      );
-    }
-    return this.records.filter(
-      (record) =>
-        record.managerId === this.currentUser?.id &&
-        record.waitingOn === 'Manager' &&
-        (record.workflowState === 'Approval to Implement' || record.workflowState === 'Approval for Start Up'),
+    return this.records.filter(r => r.ownerId === this.currentUser!.id);
+  }
+
+  /** Assigned Tasks = MOCs where this user has a role assignment but is NOT the owner.
+   *  Used in the Assigned Tasks view alongside myActionItems. */
+  get assignedRecords(): MocRecord[] {
+    if (!this.currentUser) return [];
+    if (this.currentUser.role === 'Admin') return this.records;
+    const uid = this.currentUser.id;
+    const managerActionStates: WorkflowState[] = ['Approval to Implement', 'Approval for Start Up'];
+    return this.records.filter(record =>
+      record.ownerId !== uid && (
+        (record.managerId === uid && managerActionStates.includes(record.workflowState)) ||
+        record.evaluatorIds.includes(uid) ||
+        record.actionItems.some(item => item.assigneeId === uid) ||
+        (this.currentUser!.discipline === 'Operations' && record.workflowState === 'PSSR')
+      )
     );
   }
 
@@ -420,25 +468,180 @@ export class App {
   }
 
   get filteredVisibleRecords(): MocRecord[] {
+    let records = this.visibleRecords;
+    // KPI tile filter
+    if (this.kpiFilter === 'open')    records = records.filter(r => r.status === 'Open');
+    if (this.kpiFilter === 'waiting') records = records.filter(r => r.status === 'Open' && r.waitingOn !== '-');
+    if (this.kpiFilter === 'closed')  records = records.filter(r => r.status === 'Closed');
+    // Status dropdown
+    if (this.filterStatus) records = records.filter(r => r.status === this.filterStatus);
+    // Phase dropdown
+    if (this.filterPhase) records = records.filter(r => r.workflowState === this.filterPhase);
+    // Text search
     const query = this.mocFilterText.trim().toLowerCase();
-    if (!query) return this.visibleRecords;
-    return this.visibleRecords.filter((record) => {
-      const owner = this.userName(record.ownerId).toLowerCase();
-      const assigned = this.currentAssignedTo(record).toLowerCase();
-      const waitingOn = this.waitingOnFor(record).toLowerCase();
-      const actionFlag = (record.actionFlag || '').toLowerCase();
-      return (
-        record.id.toLowerCase().includes(query) ||
-        record.title.toLowerCase().includes(query) ||
-        record.workflowState.toLowerCase().includes(query) ||
-        record.status.toLowerCase().includes(query) ||
-        owner.includes(query) ||
-        assigned.includes(query) ||
-        waitingOn.includes(query) ||
-        actionFlag.includes(query)
-      );
-    });
+    if (query) {
+      records = records.filter(record => {
+        const owner = this.userName(record.ownerId).toLowerCase();
+        return (
+          record.id.toLowerCase().includes(query) ||
+          record.title.toLowerCase().includes(query) ||
+          record.workflowState.toLowerCase().includes(query) ||
+          record.status.toLowerCase().includes(query) ||
+          owner.includes(query)
+        );
+      });
+    }
+    // Sort
+    if (this.sortColumn) {
+      const col = this.sortColumn;
+      const dir = this.sortDir;
+      records = [...records].sort((a, b) => {
+        let av = '', bv = '';
+        if (col === 'id')      { av = a.id;               bv = b.id; }
+        else if (col === 'title')   { av = a.title;            bv = b.title; }
+        else if (col === 'date')    { av = a.implementationDate; bv = b.implementationDate; }
+        else if (col === 'state')   { av = a.workflowState;     bv = b.workflowState; }
+        else if (col === 'waiting') { av = a.waitingOn;         bv = b.waitingOn; }
+        return av.localeCompare(bv) * dir;
+      });
+    }
+    return records;
   }
+
+  clearFilters(): void {
+    this.kpiFilter = 'all';
+    this.filterStatus = '';
+    this.filterPhase = '';
+    this.mocFilterText = '';
+    this.mocPage = 1;
+  }
+
+  sortBy(col: string): void {
+    if (this.sortColumn === col) {
+      this.sortDir = this.sortDir === 1 ? -1 : 1;
+    } else {
+      this.sortColumn = col;
+      this.sortDir = 1;
+    }
+    this.mocPage = 1;
+  }
+
+  get totalPages(): number {
+    return Math.max(1, Math.ceil(this.filteredVisibleRecords.length / this.mocPageSize));
+  }
+
+  get pagedRecords(): MocRecord[] {
+    const start = (this.mocPage - 1) * this.mocPageSize;
+    return this.filteredVisibleRecords.slice(start, start + this.mocPageSize);
+  }
+
+  get greeting(): string {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  get welcomeSummary(): string {
+    if (!this.currentUser) return '';
+    const role = this.currentUser.role;
+    const open = this.pendingReview;
+    const myPending = this.visibleRecords.filter(r => r.status === 'Open' && r.waitingOn !== '-').length;
+    if (role === 'Manager')  return `You have ${myPending} MOC${myPending !== 1 ? 's' : ''} awaiting your approval decision.`;
+    if (role === 'Evaluator') return `You have ${open} evaluation${open !== 1 ? 's' : ''} assigned to you.`;
+    if (role === 'Owner')     return `You own ${open} active MOC${open !== 1 ? 's' : ''}.`;
+    return `${this.records.length} total MOCs are in the system across all users.`;
+  }
+
+  get notifications(): Array<{ key: string; text: string; icon: string; severity: 'warn' | 'info' | 'error'; record?: MocRecord; read: boolean }> {
+    if (!this.currentUser) return [];
+    const notifs: Array<{ key: string; text: string; icon: string; severity: 'warn' | 'info' | 'error'; record?: MocRecord; read: boolean }> = [];
+    const role = this.currentUser.role;
+    const uid = this.currentUser.id;
+
+    const push = (key: string, text: string, icon: string, severity: 'warn' | 'info' | 'error', record?: MocRecord) => {
+      notifs.push({ key, text, icon, severity, record, read: this.readNotifKeys.has(key) });
+    };
+
+    if (role === 'Manager') {
+      for (const r of this.records.filter(r => r.managerId === uid && r.waitingOn === 'Manager' && r.status === 'Open')) {
+        push(`mgr-${r.id}-${r.workflowState}`, `${r.id}: Awaiting approval — ${r.workflowState}`, 'pi-check-circle', 'error', r);
+      }
+    }
+    if (role === 'Evaluator') {
+      for (const r of this.records.filter(r =>
+        r.workflowState === 'Evaluation' &&
+        r.evaluatorIds.includes(uid) &&
+        r.evaluations.some(e => e.evaluatorId === uid && !e.complete)
+      )) {
+        push(`eval-${r.id}`, `${r.id}: Evaluation pending`, 'pi-clipboard', 'warn', r);
+      }
+      if (this.currentUser.discipline === 'Operations') {
+        for (const r of this.records.filter(r => r.workflowState === 'PSSR')) {
+          push(`pssr-${r.id}`, `${r.id}: PSSR requires your review`, 'pi-clipboard', 'warn', r);
+        }
+      }
+    }
+    if (role === 'Owner') {
+      for (const r of this.records.filter(r => r.ownerId === uid && r.waitingOn === 'Owner' && r.status === 'Open')) {
+        const msg =
+          r.workflowState === 'Approval to Implement' ? 'Approved to implement — begin implementation' :
+          r.workflowState === 'Implementation'        ? 'Implementation in progress — mark complete when done' :
+          r.workflowState === 'PSSR'                  ? 'PSSR complete — submit for startup approval' :
+          r.workflowState === 'Approval for Start Up' ? 'Startup approved — proceed to Ready for Closure' :
+          r.workflowState === 'Ready for Closure'     ? 'Ready for closure — close MOC when post-startup items done' :
+          r.workflowState === 'Evaluation'            ? 'Rework required — update and resubmit' :
+          `Action needed — ${r.workflowState}`;
+        push(`own-${r.id}-${r.workflowState}`, `${r.id}: ${msg}`, 'pi-exclamation-circle', 'info', r);
+      }
+    }
+    // Open action items assigned to current user (all roles)
+    for (const row of this.myActionItems.filter(row => !row.item.complete)) {
+      const desc = row.item.description.length > 45 ? row.item.description.substring(0, 45) + '…' : row.item.description;
+      push(`ai-${row.item.id}`, `${row.record.id}: ${desc}`, 'pi-list', 'warn', row.record);
+    }
+    return notifs;
+  }
+
+  get panelNotifications() {
+    return this.notifications.filter(n => !this.dismissedNotifKeys.has(n.key));
+  }
+
+  /** Count only unread notifications for the bell badge */
+  get notificationCount(): number { return this.panelNotifications.filter(n => !n.read).length; }
+
+  handleNotifClick(n: { key: string; record?: MocRecord }): void {
+    this.readNotifKeys.add(n.key);
+    this.saveReadNotifKeys();
+    this.showNotifPanel = false;
+    if (n.record) {
+      this.openDetail(n.record);
+    } else {
+      this.openActionBoard();
+    }
+  }
+
+  markAllNotifsRead(): void {
+    for (const n of this.notifications) this.readNotifKeys.add(n.key);
+    this.saveReadNotifKeys();
+  }
+
+  clearReadNotifs(): void {
+    for (const n of this.notifications) this.dismissedNotifKeys.add(n.key);
+    this.readNotifKeys.clear();
+    this.saveReadNotifKeys();
+  }
+
+  isOverdue(dateStr: string): boolean {
+    if (!dateStr) return false;
+    return dateStr < new Date().toISOString().slice(0, 10);
+  }
+
+  get openActionItemCount(): number {
+    return this.myActionItems.filter(r => !r.item.complete).length;
+  }
+
+  printMoc(): void { window.print(); }
 
   get dashboardRecords(): MocRecord[] {
     return this.filteredVisibleRecords.slice(0, this.mocRowsLimit);
@@ -462,6 +665,36 @@ export class App {
     return '';
   }
 
+  usersByRole(role: UserRole): DemoUser[] {
+    return this.users.filter((u) => u.role === role);
+  }
+
+  userTitle(userId: string): string {
+    return this.users.find(u => u.id === userId)?.title ?? '';
+  }
+
+  userLabel(userId: string): string {
+    const user = this.users.find(u => u.id === userId);
+    if (!user) return userId;
+    return user.title ? `${user.name} — ${user.title}` : user.name;
+  }
+
+  openHelp(): void {
+    this.view = 'help';
+    window.scrollTo({ top: 0 });
+  }
+
+  quickLogin(user: DemoUser): void {
+    this.currentUser = user;
+    this.readNotifKeys.clear();
+    localStorage.setItem(this.sessionKey, user.id);
+    this.loginError = '';
+    this.loginUsername = '';
+    this.loginPassword = '';
+    this.rebuildNavMenu();
+    this.openDashboard();
+  }
+
   loginWithPassword(): void {
     const username = this.loginUsername.trim().toLowerCase();
     const user = this.users.find((entry) => entry.name.toLowerCase() === username);
@@ -476,6 +709,7 @@ export class App {
     }
     this.loginError = '';
     this.currentUser = user;
+    this.readNotifKeys.clear();
     localStorage.setItem(this.sessionKey, this.currentUser.id);
     this.loginPassword = '';
     this.rebuildNavMenu();
@@ -491,6 +725,7 @@ export class App {
     }
     this.loginError = '';
     this.currentUser = user;
+    this.readNotifKeys.clear();
     localStorage.setItem(this.sessionKey, user.id);
     this.loginPassword = '';
     this.rebuildNavMenu();
@@ -609,6 +844,7 @@ export class App {
   openCreate(): void {
     if (!this.currentUser || !this.canInitiate()) return;
     this.form = this.blankForm();
+    this.formOwner = 'owner1';
     this.submitAttempted = false;
     this.isSubmitting = false;
     this.lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -673,7 +909,10 @@ export class App {
     this.startupRejectionComment = '';
     this.cancelComment = '';
     this.reworkNotice = this.latestDecisionComment(record, 'Implement', 'Rejected');
-    this.view = 'detail';
+    // Auto-mark any notifications for this record as read
+    for (const n of this.notifications) {
+      if (n.record?.id === record.id) this.readNotifKeys.add(n.key);
+    }
     this.view = 'detail';
     this.showCreateModal = false;
     window.scrollTo({ top: 0 });
@@ -703,11 +942,8 @@ export class App {
         (this.currentUser.discipline === 'Operations' && record.workflowState === 'PSSR')
       );
     }
-    return (
-      record.managerId === this.currentUser.id &&
-      record.waitingOn === 'Manager' &&
-      (record.workflowState === 'Approval to Implement' || record.workflowState === 'Approval for Start Up')
-    );
+    // Manager: can view any MOC assigned to them
+    return record.managerId === this.currentUser.id;
   }
 
   waitingOnFor(record: MocRecord): string {
@@ -775,8 +1011,19 @@ export class App {
   }
 
   saveChecklistTemplates(): void {
-    this.checklistTemplates = this.normalizeChecklistTemplates(this.checklistTemplates);
+    // Remove blank items in-place so ngModel bindings stay valid
+    for (const discipline of this.disciplineOptions) {
+      const items = this.checklistTemplates.evaluation[discipline];
+      if (items) {
+        this.checklistTemplates.evaluation[discipline] = items.filter(i => i.text.trim().length > 0);
+      }
+    }
+    this.checklistTemplates.pssr = (this.checklistTemplates.pssr ?? []).filter(i => i.text.trim().length > 0);
     localStorage.setItem(this.checklistKey, JSON.stringify(this.checklistTemplates));
+    this.messageService.add({
+      severity: 'success', summary: 'Templates Saved',
+      detail: 'Checklist templates updated. New MOCs will use these settings.', life: 4000
+    });
   }
 
   workflowStepClass(record: MocRecord, stepKey: WorkflowState | 'Initiated'): string {
@@ -789,11 +1036,17 @@ export class App {
   }
 
   workflowStepState(record: MocRecord, stepKey: WorkflowState | 'Initiated'): 'Complete' | 'Current' | 'Upcoming' {
+    // When MOC is fully closed, all steps turn green
+    if (record.workflowState === 'Closed') return 'Complete';
     const currentIndex = this.workflowStepIndex(record);
     const stepIndex = this.workflowSteps.findIndex((entry) => entry.key === stepKey);
     if (stepIndex < currentIndex) return 'Complete';
     if (stepIndex === currentIndex) return 'Current';
     return 'Upcoming';
+  }
+
+  completedStepCount(record: MocRecord): number {
+    return this.workflowStepIndex(record);
   }
 
   workflowTagSeverity(state: 'Complete' | 'Current' | 'Upcoming'): 'success' | 'info' | 'secondary' {
@@ -871,6 +1124,55 @@ export class App {
     const index = this.workflowStepIndex(record);
     const step = this.workflowSteps[index] ?? this.workflowSteps[0];
     return `Step ${index + 1} of ${this.workflowSteps.length}: ${step.label}`;
+  }
+
+  workflowStateBadgeClass(state: string): string {
+    const map: Record<string, string> = {
+      'Evaluation': 'badge-blue',
+      'Approval to Implement': 'badge-amber',
+      'Implementation': 'badge-green',
+      'PSSR': 'badge-purple',
+      'Approval for Start Up': 'badge-pink',
+      'Ready for Closure': 'badge-cyan',
+      'Closed': 'badge-gray',
+      'Cancelled': 'badge-red',
+    };
+    return map[state] ?? 'badge-gray';
+  }
+
+  disciplineBadgeClass(discipline: string): string {
+    const map: Record<string, string> = {
+      'Mechanical': 'disc-blue',
+      'Process': 'disc-teal',
+      'Electrical': 'disc-purple',
+      'Instrumentation': 'disc-amber',
+      'Environmental': 'disc-green',
+      'HSE': 'disc-orange',
+      'Operations': 'disc-indigo',
+      'Safety': 'disc-red',
+      'Civil': 'disc-brown',
+    };
+    return map[discipline] ?? 'disc-blue';
+  }
+
+  evalProgress(record: MocRecord): string {
+    if (!record.evaluations.length) return '-';
+    const done = record.evaluations.filter((t) => t.complete).length;
+    return `${done}/${record.evaluations.length}`;
+  }
+
+  evalProgressClass(record: MocRecord): string {
+    if (!record.evaluations.length) return '';
+    const done = record.evaluations.filter((t) => t.complete).length;
+    if (done === record.evaluations.length) return 'progress-done';
+    if (done > 0) return 'progress-partial';
+    return 'progress-none';
+  }
+
+  waitingOnLabel(record: MocRecord): string {
+    if (record.status !== 'Open') return 'N/A';
+    const w = this.waitingOnFor(record);
+    return w || '-';
   }
 
   userName(userId: string): string {
@@ -951,55 +1253,65 @@ export class App {
     if (task.complete) return 'Complete';
     const checklistReady = task.checklist.every((item) => !item.required || item.complete);
     if (!checklistReady) return 'Checklist Pending';
-    if (task.actionRequired === null) return 'Action Decision Pending';
-    if (!task.actionRequired) return 'Ready for Evaluator Completion';
-
-    const evaluatorActions = record.actionItems.filter((item) => item.phase === 'Evaluation' && item.createdBy === task.evaluatorId);
-    if (!evaluatorActions.length) return 'Action Creation Pending';
-    if (evaluatorActions.some((item) => !item.complete)) return 'Action Closure Pending';
-    if (evaluatorActions.some((item) => !item.reviewedByEvaluator)) return 'Evaluator Review Pending';
-    return 'Ready for Evaluator Completion';
+    // Only Evaluation AIs assigned to this evaluator themselves block their own completion.
+    const selfBlockingActions = record.actionItems.filter(
+      (item) => item.phase === 'Evaluation' && item.assigneeId === task.evaluatorId && !item.complete,
+    );
+    if (selfBlockingActions.length > 0) return 'Action Item Pending';
+    return 'Ready for Completion';
   }
 
   private evaluationActionContext(
     record: MocRecord,
-  ): { mode: 'evaluator'; task: EvaluationTask } | { mode: 'action-owner'; relatedAction: ActionItem } | null {
+  ): { mode: 'evaluator'; task: EvaluationTask } | { mode: 'action-owner' } | null {
     const task = this.evaluatorTask(record);
-    if (this.canEvaluate(record) && task?.actionRequired) {
+    // Evaluators with an assigned task can always create action items (any phase).
+    if (this.canEvaluate(record) && task) {
       return { mode: 'evaluator', task };
     }
     if (!this.currentUser || this.currentUser.role === 'Manager') return null;
-
-    const relatedAction =
-      record.actionItems.find(
-        (item) =>
-          item.phase === 'Evaluation' &&
-          item.assigneeId === this.currentUser!.id &&
-          item.complete &&
-          !item.reviewedByEvaluator &&
-          this.isMutable(record),
-      ) ?? null;
-
-    if (relatedAction) return { mode: 'action-owner', relatedAction };
+    // Non-evaluator action item assignees who completed an Evaluation AI can create
+    // follow-on Pre-Startup or Post-Startup action items (e.g. Environmental Specialist).
+    const completedEvalAction = record.actionItems.find(
+      (item) => item.phase === 'Evaluation' && item.assigneeId === this.currentUser!.id && item.complete && this.isMutable(record),
+    ) ?? null;
+    if (completedEvalAction) return { mode: 'action-owner' };
     return null;
   }
 
-  pendingReviewActions(record: MocRecord): ActionItem[] {
-    return record.actionItems.filter((item) => item.phase === 'Evaluation' && item.complete && !item.reviewedByEvaluator);
+  pendingReviewActions(_record: MocRecord): ActionItem[] {
+    // Review gate removed: evaluators can complete their evaluation without explicitly
+    // reviewing action items assigned to other people. Kept as a no-op to avoid
+    // breaking any references; returns empty array so it never blocks anything.
+    return [];
   }
 
-  canReviewAction(item: ActionItem): boolean {
-    return Boolean(
-      this.currentUser &&
-        item.complete &&
-        !item.reviewedByEvaluator &&
-        (item.createdBy === this.currentUser.id || this.currentUser.role === 'Admin'),
-    );
+  canReviewAction(_item: ActionItem): boolean {
+    // Review-action gate removed per business logic clarification.
+    return false;
   }
 
   canCompleteAction(record: MocRecord, item: ActionItem): boolean {
     if (!this.currentUser || item.complete || !this.isMutable(record)) return false;
-    return item.assigneeId === this.currentUser.id || this.currentUser.role === 'Admin' || this.currentUser.id === record.ownerId;
+    // Only the person the action item is assigned to may mark it complete (+ Admin override).
+    if (item.assigneeId !== this.currentUser.id && this.currentUser.role !== 'Admin') return false;
+    // Pre-Startup action items: only completable during PSSR stage
+    if (item.phase === 'Pre-Startup') {
+      return record.workflowState === 'PSSR';
+    }
+    // Post-Startup action items: only completable during Ready for Closure (after startup)
+    if (item.phase === 'Post-Startup') {
+      return record.workflowState === 'Ready for Closure';
+    }
+    // Evaluation action items: completable during Evaluation stage
+    return record.workflowState === 'Evaluation';
+  }
+
+  actionItemStageNote(item: ActionItem): string {
+    if (item.complete) return '';
+    if (item.phase === 'Pre-Startup') return 'Completable during PSSR step only';
+    if (item.phase === 'Post-Startup') return 'Completable after startup approval (Ready for Closure)';
+    return 'Completable during Evaluation step only';
   }
 
   canSubmitActionCompletion(record: MocRecord, item: ActionItem): boolean {
@@ -1017,8 +1329,10 @@ export class App {
       this.canApproveToImplement(record) ||
       this.canSendBackToEvaluation(record) ||
       this.canCancelMoc(record) ||
+      this.canStartImplementation(record) ||
       this.canMarkImplemented(record) ||
       this.canCompletePssr(record) ||
+      this.canSubmitForStartupApproval(record) ||
       this.canApproveStartup(record) ||
       this.canSendBackToPssr(record) ||
       this.canProceedToReadyForClosure(record) ||
@@ -1030,6 +1344,7 @@ export class App {
     return (
       Boolean(this.currentUser && (this.currentUser.id === record.ownerId || this.currentUser.role === 'Admin')) &&
       record.workflowState === 'Evaluation' &&
+      record.waitingOn === 'Owner' &&
       Boolean(this.latestDecision(record, 'Implement', 'Rejected')) &&
       this.isMutable(record)
     );
@@ -1053,11 +1368,15 @@ export class App {
   }
 
   canCompleteEvaluation(record: MocRecord, task: EvaluationTask): boolean {
-    if (task.complete || !task.checklist.every((item) => !item.required || item.complete)) return false;
-    if (task.actionRequired === null) return false;
-    if (!task.actionRequired) return true;
-    const evaluatorActions = record.actionItems.filter((item) => item.phase === 'Evaluation' && item.createdBy === task.evaluatorId);
-    return evaluatorActions.length > 0 && evaluatorActions.every((item) => item.complete && item.reviewedByEvaluator);
+    if (task.complete) return false;
+    // All required checklist items must be done.
+    if (!task.checklist.every((item) => !item.required || item.complete)) return false;
+    // Only Evaluation AIs that are ASSIGNED TO THIS EVALUATOR block their own completion.
+    // If the evaluator raised an Evaluation AI for another person, they are NOT blocked.
+    const selfAssignedOpenEvalActions = record.actionItems.filter(
+      (item) => item.phase === 'Evaluation' && item.assigneeId === task.evaluatorId && !item.complete,
+    );
+    return selfAssignedOpenEvalActions.length === 0;
   }
 
   completeEvaluation(record: MocRecord, task: EvaluationTask): void {
@@ -1078,13 +1397,15 @@ export class App {
 
   canCreateEvaluationAction(record: MocRecord): boolean {
     const context = this.evaluationActionContext(record);
+    // Action-owners (non-evaluators who completed an Evaluation AI) cannot create Evaluation-type AIs.
     if (context?.mode === 'action-owner' && this.newAction.phase === 'Evaluation') {
       this.newAction.phase = 'Post-Startup';
     }
-    return Boolean(context && this.isMutable(record) && record.workflowState === 'Evaluation' && !record.evaluations.every((task) => task.complete));
+    return Boolean(context && this.isMutable(record) && record.workflowState === 'Evaluation');
   }
 
   canCreateEvaluationPhaseAction(record: MocRecord): boolean {
+    // Only evaluators (not action-owners completing someone else's task) can create Evaluation-type AIs.
     const context = this.evaluationActionContext(record);
     return Boolean(context && context.mode === 'evaluator');
   }
@@ -1103,9 +1424,7 @@ export class App {
       source === 'evaluation'
         ? evaluationContext && evaluationContext.mode === 'evaluator'
           ? evaluationContext.task.discipline
-          : evaluationContext && evaluationContext.mode === 'action-owner'
-            ? evaluationContext.relatedAction.sourceDiscipline
-            : task?.discipline
+          : task?.discipline
         : undefined;
 
     const action: ActionItem = {
@@ -1118,6 +1437,7 @@ export class App {
       reviewedByEvaluator: this.newAction.phase !== 'Evaluation',
       createdBy: this.currentUser.id,
       sourceDiscipline,
+      priority: this.newAction.priority,
     };
 
     record.actionItems = [...record.actionItems, action];
@@ -1177,17 +1497,21 @@ export class App {
       Boolean(this.currentUser && (this.currentUser.id === record.ownerId || this.currentUser.role === 'Admin')) &&
       record.workflowState === 'Evaluation' &&
       record.evaluations.every((task) => task.complete) &&
-      !record.actionItems.some((item) => item.phase === 'Evaluation' && (!item.complete || !item.reviewedByEvaluator))
+      // ALL Evaluation AIs (regardless of who raised them or who they are assigned to)
+      // must be complete before the Owner can advance the MOC. This is the MOC-level gate.
+      !record.actionItems.some((item) => item.phase === 'Evaluation' && !item.complete)
     );
   }
 
   submitForApproval(record: MocRecord): void {
     if (!this.canSubmitForApproval(record)) return;
-    record.workflowState = 'Approval to Implement';
-    record.waitingOn = 'Manager';
-    record.actionFlag = 'Manager';
-    this.addApproval(record, 'Implement', 'Submitted');
-    this.finishWorkflowUpdate(record, 'Submitted for manager approval to implement.');
+    this.confirmAction('Submit for Approval', `Submit ${record.id} for manager approval to implement?`, () => {
+      record.workflowState = 'Approval to Implement';
+      record.waitingOn = 'Manager';
+      record.actionFlag = 'Manager';
+      this.addApproval(record, 'Implement', 'Submitted');
+      this.finishWorkflowUpdate(record, 'Submitted for manager approval to implement.');
+    });
   }
 
   canApproveToImplement(record: MocRecord): boolean {
@@ -1202,11 +1526,31 @@ export class App {
 
   approveToImplement(record: MocRecord): void {
     if (!this.canApproveToImplement(record)) return;
-    record.workflowState = 'Implementation';
-    record.waitingOn = 'Owner';
-    record.actionFlag = 'Owner';
-    this.addApproval(record, 'Implement', 'Approved');
-    this.finishWorkflowUpdate(record, 'Manager approved to implement.');
+    this.confirmAction('Approve to Implement', `Approve ${record.id} for implementation? The Owner will be notified to begin.`, () => {
+      record.waitingOn = 'Owner';
+      record.actionFlag = 'Owner';
+      this.addApproval(record, 'Implement', 'Approved');
+      this.finishWorkflowUpdate(record, 'Manager approved to implement. Owner can now begin implementation.');
+    });
+  }
+
+  canStartImplementation(record: MocRecord): boolean {
+    return (
+      this.isMutable(record) &&
+      Boolean(this.currentUser && (this.currentUser.id === record.ownerId || this.currentUser.role === 'Admin')) &&
+      record.workflowState === 'Approval to Implement' &&
+      record.waitingOn === 'Owner'
+    );
+  }
+
+  startImplementation(record: MocRecord): void {
+    if (!this.canStartImplementation(record)) return;
+    this.confirmAction('Begin Implementation', `Confirm that physical implementation work on ${record.id} has commenced?`, () => {
+      record.workflowState = 'Implementation';
+      record.waitingOn = 'Owner';
+      record.actionFlag = 'Owner';
+      this.finishWorkflowUpdate(record, 'Owner commenced implementation.');
+    });
   }
 
   canSendBackToEvaluation(record: MocRecord): boolean {
@@ -1217,16 +1561,27 @@ export class App {
     if (!this.canSendBackToEvaluation(record)) return;
     const comment = this.implementRejectionComment.trim();
     if (!comment) return;
-    record.workflowState = 'Evaluation';
-    record.waitingOn = 'Owner';
-    record.actionFlag = 'Owner';
-    this.resetEvaluationTasks(record);
-    this.addApproval(record, 'Implement', 'Rejected', comment);
-    this.implementRejectionComment = '';
-    this.finishWorkflowUpdate(record, `Manager sent back to Evaluation. Comment: ${comment}`);
+    this.confirmAction('Reject — Send Back to Evaluation', `Reject ${record.id} and return to Evaluation? All evaluations will be reset.`, () => {
+      // Snapshot the current field values before owner edits them
+      record.reworkSnapshot = {
+        title: record.title,
+        description: record.description,
+        basis: record.basis,
+        implementationDate: record.implementationDate,
+        disciplines: [...record.disciplines],
+      };
+      record.workflowState = 'Evaluation';
+      record.waitingOn = 'Owner';
+      record.actionFlag = 'Owner';
+      this.resetEvaluationTasks(record);
+      this.addApproval(record, 'Implement', 'Rejected', comment);
+      this.implementRejectionComment = '';
+      this.finishWorkflowUpdate(record, `Manager sent back to Evaluation. Comment: ${comment}`);
+    });
   }
 
   canCancelMoc(record: MocRecord): boolean {
+    if (this.currentUser?.role === 'Manager') return false;
     return this.canApproveToImplement(record);
   }
 
@@ -1260,19 +1615,22 @@ export class App {
 
   markImplemented(record: MocRecord): void {
     if (!this.canMarkImplemented(record)) return;
-    record.workflowState = 'PSSR';
-    record.waitingOn = 'Operations';
-    record.actionFlag = 'Operations';
-    this.finishWorkflowUpdate(record, 'Implementation completed. Routed to PSSR.');
+    this.confirmAction('Mark Implementation Complete', `Confirm all field implementation work for ${record.id} is done? This will route the MOC to PSSR.`, () => {
+      record.workflowState = 'PSSR';
+      record.waitingOn = 'Operations';
+      record.actionFlag = 'Operations';
+      this.finishWorkflowUpdate(record, 'Implementation completed. Routed to PSSR.');
+    });
   }
 
   canCompletePssr(record: MocRecord): boolean {
+    // Operations can complete PSSR even with open Pre-Startup action items.
+    // Pre-Startup items block startup approval (canSubmitForStartupApproval), not PSSR completion.
     return (
       this.isMutable(record) &&
       Boolean(this.currentUser && (this.currentUser.discipline === 'Operations' || this.currentUser.role === 'Admin')) &&
       record.workflowState === 'PSSR' &&
-      record.pssrChecklist.every((item) => !item.required || item.complete) &&
-      !record.actionItems.some((item) => item.phase === 'Pre-Startup' && !item.complete)
+      record.pssrChecklist.every((item) => !item.required || item.complete)
     );
   }
 
@@ -1282,11 +1640,33 @@ export class App {
 
   completePssr(record: MocRecord): void {
     if (!this.canCompletePssr(record)) return;
-    record.workflowState = 'Approval for Start Up';
-    record.waitingOn = 'Manager';
-    record.actionFlag = 'Manager';
-    this.addApproval(record, 'Start Up', 'Submitted');
-    this.finishWorkflowUpdate(record, 'PSSR completed. Routed for startup approval.');
+    this.confirmAction('Submit PSSR for Review', `Submit the PSSR for ${record.id}? The Owner will review and advance to Startup Approval.`, () => {
+      record.pssrSubmitted = true;
+      record.waitingOn = 'Owner';
+      record.actionFlag = 'Owner';
+      this.finishWorkflowUpdate(record, 'PSSR completed by Operations. Owner to review and submit for startup approval.');
+    });
+  }
+
+  canSubmitForStartupApproval(record: MocRecord): boolean {
+    return (
+      this.isMutable(record) &&
+      Boolean(this.currentUser && (this.currentUser.id === record.ownerId || this.currentUser.role === 'Admin')) &&
+      record.workflowState === 'PSSR' &&
+      record.pssrSubmitted === true &&
+      !record.actionItems.some(item => item.phase === 'Pre-Startup' && !item.complete)
+    );
+  }
+
+  submitForStartupApproval(record: MocRecord): void {
+    if (!this.canSubmitForStartupApproval(record)) return;
+    this.confirmAction('Submit for Startup Approval', `Submit ${record.id} to the Manager for startup approval?`, () => {
+      record.workflowState = 'Approval for Start Up';
+      record.waitingOn = 'Manager';
+      record.actionFlag = 'Manager';
+      this.addApproval(record, 'Start Up', 'Submitted');
+      this.finishWorkflowUpdate(record, 'Owner submitted for startup approval.');
+    });
   }
 
   canApproveStartup(record: MocRecord): boolean {
@@ -1303,10 +1683,12 @@ export class App {
 
   approveStartup(record: MocRecord): void {
     if (!this.canApproveStartup(record)) return;
-    this.addApproval(record, 'Start Up', 'Approved');
-    record.waitingOn = 'Owner';
-    record.actionFlag = 'Owner';
-    this.finishWorkflowUpdate(record, 'Manager approved startup. Owner must proceed to Ready for Closure.');
+    this.confirmAction('Approve Start Up', `Approve startup for ${record.id}? The Owner will proceed to Ready for Closure.`, () => {
+      this.addApproval(record, 'Start Up', 'Approved');
+      record.waitingOn = 'Owner';
+      record.actionFlag = 'Owner';
+      this.finishWorkflowUpdate(record, 'Manager approved startup. Owner must proceed to Ready for Closure.');
+    });
   }
 
   canSendBackToPssr(record: MocRecord): boolean {
@@ -1317,12 +1699,20 @@ export class App {
     if (!this.canSendBackToPssr(record)) return;
     const comment = this.startupRejectionComment.trim();
     if (!comment) return;
-    this.addApproval(record, 'Start Up', 'Rejected', comment);
-    record.workflowState = 'PSSR';
-    record.waitingOn = 'Operations';
-    record.actionFlag = 'Operations';
-    this.startupRejectionComment = '';
-    this.finishWorkflowUpdate(record, `Manager sent back to PSSR. Comment: ${comment}`);
+    this.confirmAction('Reject — Send Back to PSSR', `Reject startup and return ${record.id} to PSSR for further review?`, () => {
+      this.addApproval(record, 'Start Up', 'Rejected', comment);
+      record.workflowState = 'PSSR';
+      record.pssrSubmitted = false;
+      for (const item of record.pssrChecklist) {
+        item.complete = false;
+        item.completedByUserId = undefined;
+        item.completedAt = undefined;
+      }
+      record.waitingOn = 'Operations';
+      record.actionFlag = 'Operations';
+      this.startupRejectionComment = '';
+      this.finishWorkflowUpdate(record, `Manager sent back to PSSR. Comment: ${comment}`);
+    });
   }
 
   canProceedToReadyForClosure(record: MocRecord): boolean {
@@ -1336,9 +1726,11 @@ export class App {
 
   proceedToReadyForClosure(record: MocRecord): void {
     if (!this.canProceedToReadyForClosure(record)) return;
-    record.workflowState = 'Ready for Closure';
-    this.recalculateRecordState(record);
-    this.finishWorkflowUpdate(record, 'Owner proceeded to Ready for Closure.');
+    this.confirmAction('Proceed to Ready for Closure', `Move ${record.id} to Ready for Closure / Post-Startup Review?`, () => {
+      record.workflowState = 'Ready for Closure';
+      this.recalculateRecordState(record);
+      this.finishWorkflowUpdate(record, 'Owner proceeded to Ready for Closure.');
+    });
   }
 
   canClose(record: MocRecord): boolean {
@@ -1461,8 +1853,31 @@ export class App {
     if (!record.title.trim() || !record.description.trim() || !record.basis.trim() || !record.implementationDate || record.disciplines.length === 0) return;
     if (record.implementationDate < this.minDate) return;
     record.evaluatorIds = record.disciplines.map((discipline) => this.evaluatorForDiscipline(discipline));
-    this.addHistory(record, 'Evaluation', 'Owner updated initiation fields after manager rework request.');
+    // Re-route back to evaluators so they can re-evaluate after rework
+    record.waitingOn = 'Evaluator';
+    record.actionFlag = 'Evaluator';
+    this.addHistory(record, 'Evaluation', 'Owner updated fields after manager rejection. Routed back to evaluators.');
     this.touchSelectedMoc();
+    this.messageService.add({ severity: 'success', summary: 'Rework Saved', detail: 'MOC re-routed to evaluators for review.', life: 4000 });
+  }
+
+  /** Returns rows of field-level diff between rework snapshot and current values. */
+  getReworkDiff(record: MocRecord): Array<{ field: string; before: string; after: string; changed: boolean }> {
+    const snap = record.reworkSnapshot;
+    if (!snap) return [];
+    const fmt = (d: string) => {
+      if (!d) return '—';
+      const parts = d.split('-');
+      if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      return d;
+    };
+    return [
+      { field: 'Title',            before: snap.title,                      after: record.title,                      changed: snap.title !== record.title },
+      { field: 'Description',      before: snap.description,                after: record.description,                changed: snap.description !== record.description },
+      { field: 'Basis / Justification', before: snap.basis,                after: record.basis,                      changed: snap.basis !== record.basis },
+      { field: 'Date Needed By',   before: fmt(snap.implementationDate),    after: fmt(record.implementationDate),    changed: snap.implementationDate !== record.implementationDate },
+      { field: 'Disciplines',      before: snap.disciplines.join(', '),     after: record.disciplines.join(', '),     changed: snap.disciplines.join(',') !== record.disciplines.join(',') },
+    ];
   }
 
   latestDecisionComment(record: MocRecord, gate: GateType, decision: GateDecision): string {
@@ -1477,7 +1892,18 @@ export class App {
   submitMoc(): void {
     this.submitAttempted = true;
     if (!this.currentUser || !this.isFormValid() || this.isSubmitting) return;
+    this.confirmationService.confirm({
+      message: 'Once submitted, this MOC will be routed for evaluation and cannot be edited. Are you sure you want to submit?',
+      header: 'Confirm MOC Submission',
+      icon: 'pi pi-info-circle',
+      acceptLabel: 'Yes, Submit MOC',
+      rejectLabel: 'Cancel',
+      accept: () => this.doSubmitMoc(),
+    });
+  }
 
+  private doSubmitMoc(): void {
+    if (!this.currentUser || !this.isFormValid() || this.isSubmitting) return;
     this.isSubmitting = true;
     const now = new Date().toISOString();
     const record: MocRecord = {
@@ -1490,9 +1916,9 @@ export class App {
       supportingDocumentDataUrl: this.form.supportingDocumentDataUrl,
       supportingDocumentMimeType: this.form.supportingDocumentMimeType,
       implementationDate: this.form.implementationDate,
-      ownerId: this.currentUser.id,
+      ownerId: this.currentUser.role === 'Admin' ? this.formOwner : this.currentUser.id,
       evaluatorIds: this.form.disciplines.map((discipline) => this.evaluatorForDiscipline(discipline)),
-      managerId: 'manager1',
+      managerId: this.users.find(u => u.role === 'Manager')?.id ?? 'manager1',
       evaluations: this.form.disciplines.map((discipline) => this.makeEvaluationTask(discipline)),
       pssrChecklist: this.makePssrChecklist(false),
       actionItems: [],
@@ -1617,8 +2043,8 @@ export class App {
     return ['Instrumentation impact reviewed', 'Control and alarm impact checked'];
   }
 
-  private blankAction(): Pick<ActionItem, 'phase' | 'description' | 'assigneeId' | 'dueDate'> {
-    return { phase: 'Evaluation', description: '', assigneeId: 'owner1', dueDate: '' };
+  private blankAction(): Pick<ActionItem, 'phase' | 'description' | 'assigneeId' | 'dueDate' | 'priority'> {
+    return { phase: 'Evaluation', description: '', assigneeId: 'owner1', dueDate: '', priority: 'Normal' };
   }
 
   private recalculateRecordState(record: MocRecord): void {
@@ -1630,18 +2056,16 @@ export class App {
 
     if (record.workflowState === 'Evaluation') {
       const openEvaluationActions = record.actionItems.some((item) => item.phase === 'Evaluation' && !item.complete);
-      const evaluationActionsAwaitingReview = this.pendingReviewActions(record).length > 0;
       const allEvaluationsComplete = record.evaluations.every((task) => task.complete);
 
-      if (allEvaluationsComplete && !openEvaluationActions && !evaluationActionsAwaitingReview) {
+      if (allEvaluationsComplete && !openEvaluationActions) {
+        // All evaluations done and all Evaluation AIs closed → Owner can advance.
         record.waitingOn = 'Owner';
         record.actionFlag = 'Owner';
       } else if (openEvaluationActions) {
+        // Open Evaluation AIs block the MOC regardless of which evaluations are complete.
         record.waitingOn = 'Action Owner';
         record.actionFlag = 'Action Owner';
-      } else if (evaluationActionsAwaitingReview) {
-        record.waitingOn = 'Evaluator';
-        record.actionFlag = 'Evaluator';
       } else {
         record.waitingOn = 'Evaluator';
         record.actionFlag = 'Evaluator';
@@ -1649,8 +2073,13 @@ export class App {
     }
 
     if (record.workflowState === 'Approval to Implement') {
-      record.waitingOn = 'Manager';
-      record.actionFlag = 'Manager';
+      if (this.latestDecision(record, 'Implement', 'Approved')) {
+        record.waitingOn = 'Owner';
+        record.actionFlag = 'Owner';
+      } else {
+        record.waitingOn = 'Manager';
+        record.actionFlag = 'Manager';
+      }
     }
 
     if (record.workflowState === 'Implementation') {
@@ -1659,8 +2088,14 @@ export class App {
     }
 
     if (record.workflowState === 'PSSR') {
-      record.waitingOn = 'Operations';
-      record.actionFlag = 'Operations';
+      if (record.pssrSubmitted) {
+        record.waitingOn = 'Owner';
+        record.actionFlag = 'Owner';
+      } else {
+        const openPreStartup = record.actionItems.some(item => item.phase === 'Pre-Startup' && !item.complete);
+        record.waitingOn = openPreStartup ? 'Action Owner' : 'Operations';
+        record.actionFlag = openPreStartup ? 'Action Owner' : 'Operations';
+      }
     }
 
     if (record.workflowState === 'Approval for Start Up') {
@@ -1703,6 +2138,17 @@ export class App {
     this.saveRecords();
   }
 
+  private confirmAction(header: string, message: string, action: () => void): void {
+    this.confirmationService.confirm({
+      header,
+      message,
+      icon: 'pi pi-question-circle',
+      acceptLabel: 'Confirm',
+      rejectLabel: 'Cancel',
+      accept: action,
+    });
+  }
+
   private finishWorkflowUpdate(record: MocRecord, note: string): void {
     this.actionLoading = true;
     setTimeout(() => {
@@ -1740,18 +2186,20 @@ export class App {
     if (record.status !== 'Open') return [];
 
     if (record.workflowState === 'Evaluation') {
+      // If open Evaluation AIs exist, those assignees are who we're waiting on.
       const openActionAssignees = record.actionItems
         .filter((item) => item.phase === 'Evaluation' && !item.complete)
         .map((item) => item.assigneeId);
       if (openActionAssignees.length) return [...new Set(openActionAssignees)];
-      const reviewEvaluators = this.pendingReviewActions(record).map((item) => item.createdBy);
-      if (reviewEvaluators.length) return [...new Set(reviewEvaluators)];
+      // Otherwise we're waiting on evaluators who haven't finished yet.
       const openEvaluators = record.evaluations.filter((task) => !task.complete).map((task) => task.evaluatorId);
       return openEvaluators.length ? [...new Set(openEvaluators)] : [record.ownerId];
     }
-    if (record.workflowState === 'Approval to Implement') return [record.managerId];
+    if (record.workflowState === 'Approval to Implement') {
+      return this.latestDecision(record, 'Implement', 'Approved') ? [record.ownerId] : [record.managerId];
+    }
     if (record.workflowState === 'Implementation') return [record.ownerId];
-    if (record.workflowState === 'PSSR') return ['ops1'];
+    if (record.workflowState === 'PSSR') return record.pssrSubmitted ? [record.ownerId] : ['ops1'];
     if (record.workflowState === 'Approval for Start Up') {
       return this.latestDecision(record, 'Start Up', 'Approved') ? [record.ownerId] : [record.managerId];
     }
@@ -2069,6 +2517,18 @@ export class App {
     }
   }
 
+  private loadReadNotifKeys(): Set<string> {
+    try {
+      const raw = JSON.parse(localStorage.getItem(this.notifReadKey) ?? 'null') as string[] | null;
+      if (Array.isArray(raw)) return new Set<string>(raw);
+    } catch { /* ignore */ }
+    return new Set<string>();
+  }
+
+  private saveReadNotifKeys(): void {
+    localStorage.setItem(this.notifReadKey, JSON.stringify([...this.readNotifKeys]));
+  }
+
   private saveUserPasswords(): void {
     localStorage.setItem(this.passwordKey, JSON.stringify(this.userPasswords));
   }
@@ -2076,7 +2536,22 @@ export class App {
   private openDocumentPreview(title: string, fileName: string, dataUrl: string, mimeType?: string): void {
     this.previewDocument = { title, fileName, dataUrl, mimeType };
     const type = this.previewType();
-    this.previewResourceUrl = type === 'pdf' ? this.sanitizer.bypassSecurityTrustResourceUrl(dataUrl) : null;
+    if (type === 'pdf') {
+      // Convert data URL to blob URL — browsers block data: URLs in iframes for PDFs
+      try {
+        const byteStr = atob(dataUrl.split(',')[1]);
+        const ab = new ArrayBuffer(byteStr.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
+        const blob = new Blob([ab], { type: 'application/pdf' });
+        const blobUrl = URL.createObjectURL(blob);
+        this.previewResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl);
+      } catch {
+        this.previewResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl(dataUrl);
+      }
+    } else {
+      this.previewResourceUrl = null;
+    }
     this.previewTextContent = type === 'text' ? this.decodeDataUrlText(dataUrl) : '';
     this.showPreviewModal = true;
   }
@@ -2101,15 +2576,20 @@ export class App {
 
   private seedRecords(): MocRecord[] {
     const now = new Date().toISOString();
+    const d = (offsetDays: number) => {
+      const dt = new Date(); dt.setDate(dt.getDate() + offsetDays);
+      return dt.toISOString().slice(0, 10);
+    };
     return [
+      // 1 — Evaluation stage (Mechanical)
       {
-        id: 'MOC000123',
-        title: 'Pump seal replacement',
-        description: 'Replace pump seal on P-101 due to recurring leakage.',
-        basis: 'Maintenance reliability and safe operation.',
+        id: 'MOC-2026-001',
+        title: 'Replace Relief Valve RV-1042 — Crude Unit Overhead Accumulator',
+        description: 'Relief valve RV-1042 on the crude unit overhead accumulator has failed its last two bench tests. Engineering recommends replacement with a higher-rated valve (150 psig → 175 psig set pressure) to match the revised P&ID.',
+        basis: 'Valve failed biennial bench test. Revised hydraulic study requires higher set pressure per Engineering Change Note ECN-4471.',
         disciplines: ['Mechanical'],
-        supportingDocumentName: 'pump_seal_spec.pdf',
-        implementationDate: '2026-06-30',
+        supportingDocumentName: 'RV-1042_Engineering_Basis.pdf',
+        implementationDate: d(45),
         ownerId: 'owner1',
         evaluatorIds: ['mech1'],
         managerId: 'manager1',
@@ -2120,97 +2600,209 @@ export class App {
         workflowState: 'Evaluation',
         status: 'Open',
         waitingOn: 'Evaluator',
-        workflowHistory: [this.seedHistory(now, 'Initiated', 'owner1', ['mech1'], 'MOC initiated and routed to Mike for evaluation.')],
+        workflowHistory: [this.seedHistory(now, 'Initiated', 'owner1', ['mech1'], 'MOC initiated. Routed to Mike (Mechanical) for evaluation.')],
         actionFlag: 'Evaluator',
         createdDate: now,
         lastUpdatedDate: now,
       },
+      // 2 — Approval to Implement (Mechanical + Process)
       {
-        id: 'MOC000124',
-        title: 'Control valve upgrade',
-        description: 'Install new control valve on gas line to improve flow control.',
-        basis: 'Operational reliability.',
+        id: 'MOC-2026-002',
+        title: 'Update Bolting Spec for High-Temperature Flange Joints — P-201 Process Train',
+        description: 'Current bolting specification (B7/2H) is insufficient for sustained operating temperatures above 450°F on the P-201 train. Engineering proposes upgrading to B16/4 studs and heavy hex nuts throughout the high-temperature section.',
+        basis: 'API 660 compliance review identified non-conforming bolting on 14 flange connections. Corrective action required before next turnaround.',
         disciplines: ['Mechanical', 'Process'],
-        supportingDocumentName: 'valve_datasheet.pdf',
-        implementationDate: '2026-07-15',
+        supportingDocumentName: 'Bolting_Spec_MOC_P201.pdf',
+        implementationDate: d(60),
         ownerId: 'owner1',
         evaluatorIds: ['mech1', 'process1'],
         managerId: 'manager1',
         evaluations: [this.seedEvaluation('Mechanical', 'mech1', true), this.seedEvaluation('Process', 'process1', true)],
         pssrChecklist: this.makePssrChecklist(false),
         actionItems: [],
-        approvalHistory: [
-          {
-            id: 'AP-seed-1',
-            gate: 'Implement',
-            decision: 'Submitted',
-            byUserId: 'owner1',
-            at: now,
-          },
-        ],
+        approvalHistory: [{ id: 'AP-002-1', gate: 'Implement', decision: 'Submitted', byUserId: 'owner1', at: now }],
         workflowState: 'Approval to Implement',
         status: 'Open',
         waitingOn: 'Manager',
         workflowHistory: [
-          this.seedHistory(now, 'Initiated', 'owner1', ['mech1', 'process1'], 'MOC initiated and routed for discipline evaluation.'),
-          this.seedHistory(now, 'Approval to Implement', 'owner1', ['manager1'], 'Evaluation completed and routed to Morgan.'),
+          this.seedHistory(now, 'Initiated', 'owner1', ['mech1', 'process1'], 'MOC initiated. Routed to Mike and Priya for evaluation.'),
+          this.seedHistory(now, 'Approval to Implement', 'owner1', ['manager1'], 'All evaluations complete. Submitted to Morgan for approval.'),
         ],
         actionFlag: 'Manager',
         createdDate: now,
         lastUpdatedDate: now,
       },
+      // 3 — Implementation (Mechanical + Electrical)
       {
-        id: 'MOC000125',
-        title: 'Operations procedure update',
-        description: 'Update area startup procedure to reflect revised operating sequence.',
-        basis: 'Procedure accuracy and workforce clarity.',
-        disciplines: ['Operations'],
-        supportingDocumentName: 'startup_sequence.docx',
-        implementationDate: '2026-08-01',
+        id: 'MOC-2026-003',
+        title: 'Relocate Firewater Header FW-3B — Process Area 3 Capacity Expansion',
+        description: 'The existing FW-3B firewater main conflicts with the footprint of the new heat exchanger foundation (E-501 A/B). The header must be relocated 12 feet north per updated plot plan drawing 3B-P-0042 Rev 4.',
+        basis: 'Structural conflict identified during E-501 A/B foundation layout. Relocation is required to maintain firewater coverage and clear the construction corridor.',
+        disciplines: ['Mechanical'],
+        supportingDocumentName: 'FW-3B_Relocation_Isometric.pdf',
+        implementationDate: d(20),
         ownerId: 'owner2',
-        evaluatorIds: ['ops1'],
+        evaluatorIds: ['mech1'],
         managerId: 'manager1',
-        evaluations: [this.seedEvaluation('Operations', 'ops1', false)],
+        evaluations: [this.seedEvaluation('Mechanical', 'mech1', true)],
         pssrChecklist: this.makePssrChecklist(false),
         actionItems: [],
-        approvalHistory: [],
-        workflowState: 'Evaluation',
+        approvalHistory: [
+          { id: 'AP-003-1', gate: 'Implement', decision: 'Submitted', byUserId: 'owner2', at: now },
+          { id: 'AP-003-2', gate: 'Implement', decision: 'Approved', byUserId: 'manager1', at: now },
+        ],
+        workflowState: 'Implementation',
         status: 'Open',
-        waitingOn: 'Evaluator',
-        workflowHistory: [this.seedHistory(now, 'Initiated', 'owner2', ['ops1'], 'MOC initiated and routed to Oscar for evaluation.')],
-        actionFlag: 'Evaluator',
+        waitingOn: 'Owner',
+        workflowHistory: [
+          this.seedHistory(now, 'Initiated', 'owner2', ['mech1'], 'MOC initiated. Routed to Mike for mechanical evaluation.'),
+          this.seedHistory(now, 'Approval to Implement', 'owner2', ['manager1'], 'Evaluation complete. Submitted for approval.'),
+          this.seedHistory(now, 'Implementation', 'manager1', ['owner2'], 'Approved to implement. Routed to Owen for construction oversight.'),
+        ],
+        actionFlag: 'Owner',
         createdDate: now,
         lastUpdatedDate: now,
       },
+      // 4 — PSSR stage
       {
-        id: 'MOC000126',
-        title: 'Closed area signage change',
-        description: 'Update process area signage after completed layout adjustment.',
-        basis: 'Completed communication update.',
-        disciplines: ['HSE'],
-        supportingDocumentName: 'signage_layout.png',
-        implementationDate: '2026-05-15',
-        ownerId: 'owner2',
-        evaluatorIds: ['hse1'],
+        id: 'MOC-2026-004',
+        title: 'Install Temporary Bypass — Shell-and-Tube Heat Exchanger E-402',
+        description: 'A temporary spool bypass is required around E-402 to maintain process flow during planned tube bundle replacement. Bypass will be in service for a maximum of 30 days.',
+        basis: 'Tube bundle inspection identified 23% tube failures exceeding the 15% plugging limit. Replacement requires bypassing the exchanger while maintaining unit throughput.',
+        disciplines: ['Mechanical', 'Process'],
+        supportingDocumentName: 'E402_Bypass_Engineering_Package.pdf',
+        implementationDate: d(10),
+        ownerId: 'owner1',
+        evaluatorIds: ['mech1', 'process1'],
         managerId: 'manager1',
-        evaluations: [this.seedEvaluation('HSE', 'hse1', true)],
+        evaluations: [this.seedEvaluation('Mechanical', 'mech1', true), this.seedEvaluation('Process', 'process1', true)],
+        pssrChecklist: this.makePssrChecklist(false),
+        actionItems: [
+          {
+            id: 'AI-004-1',
+            phase: 'Pre-Startup',
+            description: 'Verify temporary bypass spool hydro-test certificate is on file and signed by inspection.',
+            assigneeId: 'mech1',
+            createdBy: 'owner1',
+            dueDate: d(8),
+            complete: true,
+            completedAt: now,
+            reviewedByEvaluator: true,
+          },
+        ],
+        approvalHistory: [
+          { id: 'AP-004-1', gate: 'Implement', decision: 'Submitted', byUserId: 'owner1', at: now },
+          { id: 'AP-004-2', gate: 'Implement', decision: 'Approved', byUserId: 'manager1', at: now },
+        ],
+        workflowState: 'PSSR',
+        status: 'Open',
+        waitingOn: 'Operations',
+        workflowHistory: [
+          this.seedHistory(now, 'Initiated', 'owner1', ['mech1', 'process1'], 'MOC initiated. Sent for discipline evaluation.'),
+          this.seedHistory(now, 'Implementation', 'manager1', ['owner1'], 'Approved. Implementation in progress.'),
+          this.seedHistory(now, 'PSSR', 'owner1', ['ops1'], 'Implementation complete. Routed to Oscar for PSSR.'),
+        ],
+        actionFlag: 'Operations',
+        createdDate: now,
+        lastUpdatedDate: now,
+      },
+      // 5 — Approval for Start Up
+      {
+        id: 'MOC-2026-005',
+        title: 'Modify High-Pressure Shutdown Setpoint — Compressor K-101',
+        description: 'The high-pressure shutdown (HIPPS) setpoint on K-101 is to be revised from 285 psig to 310 psig to align with the updated compressor performance curve following impeller trim. SIL-2 functionality must be maintained.',
+        basis: 'Rotating Equipment Engineering study (REE-2026-017) confirms impeller trim requires revised HIPPS setpoint. Current setpoint causes spurious trips under normal operating envelope.',
+        disciplines: ['Mechanical', 'Process'],
+        supportingDocumentName: 'K101_HIPPS_Setpoint_Study_REE-2026-017.pdf',
+        implementationDate: d(5),
+        ownerId: 'owner2',
+        evaluatorIds: ['mech1', 'process1'],
+        managerId: 'manager1',
+        evaluations: [this.seedEvaluation('Mechanical', 'mech1', true), this.seedEvaluation('Process', 'process1', true)],
         pssrChecklist: this.makePssrChecklist(true),
         actionItems: [],
         approvalHistory: [
+          { id: 'AP-005-1', gate: 'Implement', decision: 'Submitted', byUserId: 'owner2', at: now },
+          { id: 'AP-005-2', gate: 'Implement', decision: 'Approved', byUserId: 'manager1', at: now },
+          { id: 'AP-005-3', gate: 'Start Up', decision: 'Submitted', byUserId: 'owner2', at: now },
+        ],
+        workflowState: 'Approval for Start Up',
+        status: 'Open',
+        waitingOn: 'Manager',
+        workflowHistory: [
+          this.seedHistory(now, 'Initiated', 'owner2', ['mech1', 'process1'], 'MOC initiated and sent for evaluation.'),
+          this.seedHistory(now, 'Implementation', 'manager1', ['owner2'], 'Approved. Implementation underway.'),
+          this.seedHistory(now, 'PSSR', 'owner2', ['ops1'], 'PSSR checklist complete. Startup approval requested.'),
+          this.seedHistory(now, 'Approval for Start Up', 'owner2', ['manager1'], 'Submitted for startup approval.'),
+        ],
+        actionFlag: 'Manager',
+        createdDate: now,
+        lastUpdatedDate: now,
+      },
+      // 6 — Ready for Closure (with open post-startup action item)
+      {
+        id: 'MOC-2026-006',
+        title: 'Commission Coriolis Flowmeter on Crude Feed Line — FT-2201',
+        description: 'Install and commission a new Micro Motion Coriolis flowmeter (FT-2201) on the crude feed line to replace the aging orifice plate assembly. Calibration, loop checks, and DCS integration are included in scope.',
+        basis: 'Existing orifice plate has a ±3.2% accuracy limitation impacting custody transfer measurement. Coriolis technology achieves ±0.1% accuracy required for fiscal metering per Measurement Standard MS-1104.',
+        disciplines: ['Mechanical', 'Instrumentation'],
+        supportingDocumentName: 'FT2201_Commissioning_Package.pdf',
+        implementationDate: d(-5),
+        ownerId: 'owner1',
+        evaluatorIds: ['mech1', 'ops1'],
+        managerId: 'manager1',
+        evaluations: [this.seedEvaluation('Mechanical', 'mech1', true), this.seedEvaluation('Operations', 'ops1', true)],
+        pssrChecklist: this.makePssrChecklist(true),
+        actionItems: [
           {
-            id: 'AP-seed-2',
-            gate: 'Implement',
-            decision: 'Approved',
-            byUserId: 'manager1',
-            at: now,
+            id: 'AI-006-1',
+            phase: 'Post-Startup',
+            description: 'Submit calibration certificate for FT-2201 to the Measurement & Compliance team (MS-1104 requirement) within 30 days of commissioning.',
+            assigneeId: 'env1',
+            createdBy: 'owner1',
+            dueDate: d(20),
+            complete: false,
+            completedAt: undefined,
+            reviewedByEvaluator: true,
           },
-          {
-            id: 'AP-seed-3',
-            gate: 'Start Up',
-            decision: 'Approved',
-            byUserId: 'manager1',
-            at: now,
-          },
+        ],
+        approvalHistory: [
+          { id: 'AP-006-1', gate: 'Implement', decision: 'Submitted', byUserId: 'owner1', at: now },
+          { id: 'AP-006-2', gate: 'Implement', decision: 'Approved', byUserId: 'manager1', at: now },
+          { id: 'AP-006-3', gate: 'Start Up', decision: 'Submitted', byUserId: 'owner1', at: now },
+          { id: 'AP-006-4', gate: 'Start Up', decision: 'Approved', byUserId: 'manager1', at: now },
+        ],
+        workflowState: 'Ready for Closure',
+        status: 'Open',
+        waitingOn: 'Owner',
+        workflowHistory: [
+          this.seedHistory(now, 'Initiated', 'owner1', ['mech1', 'ops1'], 'MOC initiated. Sent for mechanical and operations evaluation.'),
+          this.seedHistory(now, 'Approval for Start Up', 'manager1', ['owner1'], 'Startup approved. Ready for closure when post-startup action complete.'),
+        ],
+        actionFlag: 'Owner',
+        createdDate: now,
+        lastUpdatedDate: now,
+      },
+      // 7 — Closed
+      {
+        id: 'MOC-2026-007',
+        title: 'Revise Emergency Shutdown Procedure SOP-CDU-005 — Crude Distillation Unit',
+        description: 'Procedure SOP-CDU-005 revised to reflect new ESD valve sequencing following installation of automated SDV-112. Updated procedure includes revised valve lineup, new pressure hold verification step, and updated LOTO attachment.',
+        basis: 'SDV-112 installation (MOC-2025-088) changed the ESD sequence. Operating the unit under the old procedure creates a risk of uncontrolled depressurization during emergency shutdown.',
+        disciplines: ['HSE', 'Process'],
+        supportingDocumentName: 'SOP-CDU-005_Rev4_Final.pdf',
+        implementationDate: d(-30),
+        ownerId: 'owner2',
+        evaluatorIds: ['hse1', 'process1'],
+        managerId: 'manager1',
+        evaluations: [this.seedEvaluation('HSE', 'hse1', true), this.seedEvaluation('Process', 'process1', true)],
+        pssrChecklist: this.makePssrChecklist(true),
+        actionItems: [],
+        approvalHistory: [
+          { id: 'AP-007-1', gate: 'Implement', decision: 'Submitted', byUserId: 'owner2', at: now },
+          { id: 'AP-007-2', gate: 'Implement', decision: 'Approved', byUserId: 'manager1', at: now },
+          { id: 'AP-007-3', gate: 'Start Up', decision: 'Submitted', byUserId: 'owner2', at: now },
+          { id: 'AP-007-4', gate: 'Start Up', decision: 'Approved', byUserId: 'manager1', at: now },
         ],
         closureDate: now,
         closedByUserId: 'owner2',
@@ -2218,10 +2810,47 @@ export class App {
         status: 'Closed',
         waitingOn: '-',
         workflowHistory: [
-          this.seedHistory(now, 'Initiated', 'owner2', ['hse1'], 'MOC initiated and routed for HSE evaluation.'),
-          this.seedHistory(now, 'Closed', 'owner2', [], 'MOC closed.'),
+          this.seedHistory(now, 'Initiated', 'owner2', ['hse1', 'process1'], 'MOC initiated. HSE and Process evaluations requested.'),
+          this.seedHistory(now, 'Approval to Implement', 'owner2', ['manager1'], 'All evaluations complete. Submitted for approval.'),
+          this.seedHistory(now, 'Closed', 'owner2', [], 'All post-startup actions closed. MOC closed out.'),
         ],
         actionFlag: 'Complete',
+        createdDate: now,
+        lastUpdatedDate: now,
+      },
+      // 8 — Evaluation with Environmental action item
+      {
+        id: 'MOC-2026-008',
+        title: 'Reroute Process Vent Line from Vessel V-305 to Flare Header',
+        description: 'The existing atmospheric vent on pressure vessel V-305 vents directly to atmosphere within 50 meters of the site fence. Rerouting to the flare header is required to meet updated air quality permit conditions issued by TCEQ.',
+        basis: 'TCEQ Air Permit Amendment (Permit No. O-1234) requires elimination of direct atmospheric vents within Tier 2 fence-line monitoring boundary. Compliance deadline is 90 days from permit issue date.',
+        disciplines: ['Environmental', 'Process'],
+        supportingDocumentName: 'V305_Vent_Reroute_Permit_Basis.pdf',
+        implementationDate: d(75),
+        ownerId: 'owner2',
+        evaluatorIds: ['env1', 'process1'],
+        managerId: 'manager1',
+        evaluations: [this.seedEvaluation('Environmental', 'env1', false), this.seedEvaluation('Process', 'process1', false)],
+        pssrChecklist: this.makePssrChecklist(false),
+        actionItems: [
+          {
+            id: 'AI-008-1',
+            phase: 'Evaluation',
+            description: 'Obtain written confirmation from TCEQ that the proposed reroute configuration satisfies the permit amendment requirements before evaluation can be closed.',
+            assigneeId: 'env1',
+            createdBy: 'env1',
+            dueDate: d(14),
+            complete: false,
+            completedAt: undefined,
+            reviewedByEvaluator: false,
+          },
+        ],
+        approvalHistory: [],
+        workflowState: 'Evaluation',
+        status: 'Open',
+        waitingOn: 'Evaluator',
+        workflowHistory: [this.seedHistory(now, 'Initiated', 'owner2', ['env1', 'process1'], 'MOC initiated. Environmental and Process evaluations requested per permit compliance timeline.')],
+        actionFlag: 'Evaluator',
         createdDate: now,
         lastUpdatedDate: now,
       },

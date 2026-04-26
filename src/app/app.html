@@ -1,237 +1,530 @@
 <ng-container *ngIf="view === 'login'">
-  <main class="login-page">
-    <section class="login-card simple-login">
-      <img src="chevron-logo.svg" alt="Chevron" class="login-logo centered-logo" />
-      <h1>MOC Prototype</h1>
-      <form class="login-form" (ngSubmit)="loginWithPassword()" autocomplete="off">
-        <label>
-          Username
-          <input
-            name="demoUser"
-            [(ngModel)]="loginUsername"
-            list="usernames"
-            autocomplete="off"
-            placeholder="Enter username"
-          />
-          <datalist id="usernames">
-            <option *ngFor="let name of loginNames" [value]="name"></option>
-          </datalist>
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            name="demoPass"
-            [(ngModel)]="loginPassword"
-            autocomplete="off"
-            placeholder="Enter password"
-          />
-        </label>
-        <small class="error" *ngIf="loginError">{{ loginError }}</small>
-        <button type="submit" class="primary full-button">Login</button>
-        <button type="button" class="secondary full-button" (click)="loginWithSso()">Login with SSO</button>
-      </form>
-    </section>
+  <main class="lp-page">
+
+    <!-- Brand -->
+    <div class="lp-brand">
+      <div class="lp-logo-ring">
+        <img src="chevron-logo.svg" alt="Chevron" class="lp-logo" onerror="this.style.display='none'" />
+      </div>
+      <h1 class="lp-app-name">Chevron MOC Digital Application</h1>
+      <p class="lp-app-sub">Management of Change &mdash; HSE Digital Platform</p>
+    </div>
+
+    <!-- Card -->
+    <div class="lp-card">
+
+      <!-- Tab strip — inside card header -->
+      <div class="lp-tabs">
+        <button class="lp-tab" [class.lp-tab-active]="loginTab === 'quick'" (click)="loginTab = 'quick'">
+          <i class="pi pi-users"></i> Persona Login
+        </button>
+        <button class="lp-tab" [class.lp-tab-active]="loginTab === 'credentials'" (click)="loginTab = 'credentials'">
+          <i class="pi pi-lock"></i> ID &amp; Password
+        </button>
+      </div>
+
+      <!-- ── Persona panel ── -->
+      <div class="lp-persona-panel" *ngIf="loginTab === 'quick'">
+        <p class="lp-tip">Select a persona to sign in instantly</p>
+
+        <div class="lp-role-label lp-rl-owner"><i class="pi pi-user-edit"></i> MOC Owners</div>
+        <div class="lp-user-grid">
+          <button class="lp-user-tile lp-ut-owner" *ngFor="let u of usersByRole('Owner')" (click)="quickLogin(u)">
+            <div class="lp-avatar lp-av-owner">{{ u.name[0] }}</div>
+            <div class="lp-user-info">
+              <span class="lp-uname">{{ u.name }}</span>
+              <span class="lp-urole">{{ u.title }}</span>
+            </div>
+            <i class="pi pi-chevron-right lp-arr"></i>
+          </button>
+        </div>
+
+        <div class="lp-role-label lp-rl-manager"><i class="pi pi-briefcase"></i> Manager</div>
+        <div class="lp-user-grid">
+          <button class="lp-user-tile lp-ut-manager" *ngFor="let u of usersByRole('Manager')" (click)="quickLogin(u)">
+            <div class="lp-avatar lp-av-manager">{{ u.name[0] }}</div>
+            <div class="lp-user-info">
+              <span class="lp-uname">{{ u.name }}</span>
+              <span class="lp-urole">{{ u.title }}</span>
+            </div>
+            <i class="pi pi-chevron-right lp-arr"></i>
+          </button>
+        </div>
+
+        <div class="lp-role-label lp-rl-eval"><i class="pi pi-search"></i> Evaluators</div>
+        <div class="lp-user-grid">
+          <button class="lp-user-tile lp-ut-eval" *ngFor="let u of usersByRole('Evaluator')" (click)="quickLogin(u)">
+            <div class="lp-avatar lp-av-eval">{{ u.name[0] }}</div>
+            <div class="lp-user-info">
+              <span class="lp-uname">{{ u.name }}</span>
+              <span class="lp-urole">{{ u.discipline }}</span>
+            </div>
+            <i class="pi pi-chevron-right lp-arr"></i>
+          </button>
+        </div>
+
+        <div class="lp-role-label lp-rl-admin"><i class="pi pi-shield"></i> Admin</div>
+        <div class="lp-user-grid">
+          <button class="lp-user-tile lp-ut-admin" *ngFor="let u of usersByRole('Admin')" (click)="quickLogin(u)">
+            <div class="lp-avatar lp-av-admin">{{ u.name[0] }}</div>
+            <div class="lp-user-info">
+              <span class="lp-uname">{{ u.name }}</span>
+              <span class="lp-urole">{{ u.title }}</span>
+            </div>
+            <i class="pi pi-chevron-right lp-arr"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Credentials panel ── -->
+      <div class="lp-cred-panel" *ngIf="loginTab === 'credentials'">
+        <form class="lp-form" (ngSubmit)="loginWithPassword()" autocomplete="off">
+          <label class="lp-field">
+            <span class="lp-flabel"><i class="pi pi-user"></i> Username</span>
+            <input type="text" name="demoUser" [(ngModel)]="loginUsername"
+              list="unames5" autocomplete="off" placeholder="e.g. Olivia" />
+            <datalist id="unames5">
+              <option *ngFor="let u of users" [value]="u.name"></option>
+            </datalist>
+          </label>
+          <label class="lp-field">
+            <span class="lp-flabel"><i class="pi pi-key"></i> Password</span>
+            <input type="password" name="demoPass" [(ngModel)]="loginPassword"
+              autocomplete="off" placeholder="Enter password" />
+          </label>
+          <div class="lp-pw-hint">
+            <i class="pi pi-info-circle"></i>
+            Demo password for all accounts: <strong>demo123</strong>
+          </div>
+          <small class="error" *ngIf="loginError">{{ loginError }}</small>
+          <button type="submit" class="lp-submit-btn" [disabled]="isSubmitting">
+            <span class="btn-spinner-ring" *ngIf="isSubmitting"></span>
+            <i class="pi pi-sign-in" *ngIf="!isSubmitting"></i>
+            {{ isSubmitting ? 'Signing in…' : 'Sign In' }}
+          </button>
+        </form>
+      </div>
+
+    </div><!-- /lp-card -->
+
+    <p class="lp-footer">Chevron Corporation &middot; Houston, TX &middot; Internal Use Only</p>
+
   </main>
 </ng-container>
 
 <ng-container *ngIf="view !== 'login' && currentUser">
-  <p-toast position="top-right"></p-toast>
+
+<p-toast position="top-right"></p-toast>
   <p-confirmDialog></p-confirmDialog>
 
   <p-menubar [model]="[]" styleClass="topbar" aria-label="Top navigation">
     <ng-template pTemplate="start">
       <div class="topbar-brand">
         <img src="chevron-logo.svg" alt="Chevron" class="topbar-logo" />
-        <div class="topbar-copy">
-          <div class="topbar-title">MOC Prototype</div>
-          <div class="topbar-sub">Management of Change workflow demo (dummy data only).</div>
+        <div>
+          <div class="topbar-title">MOC Digital Application</div>
+          <div class="topbar-sub">Chevron HSE Digital Platform</div>
         </div>
       </div>
     </ng-template>
     <ng-template pTemplate="end">
-      <button type="button" class="topbar-user" (click)="userMenu.toggle($event)" aria-haspopup="true" aria-controls="user-menu">
-        <p-avatar [label]="avatarInitials(currentDisplayName)" shape="circle" size="large"></p-avatar>
-        <span class="topbar-user-meta">
-          <span class="topbar-user-name">{{ currentDisplayName }}</span>
-          <span class="topbar-user-role">{{ currentRoleLabel }}</span>
-        </span>
-        <i class="pi pi-angle-down" aria-hidden="true"></i>
-      </button>
-      <p-menu #userMenu id="user-menu" [popup]="true" [model]="userMenuItems"></p-menu>
+      <div class="topbar-end-actions">
+        <!-- Demo Reset — Admin only -->
+        <button *ngIf="currentUser.role === 'Admin'" type="button" class="topbar-reset-btn" (click)="resetDummyData()"
+          pTooltip="Reset all MOC data to initial demo state" tooltipPosition="bottom">
+          <i class="pi pi-refresh"></i> Demo Reset
+        </button>
+
+        <!-- Notification Bell -->
+        <div class="notif-wrap" style="position:relative;">
+          <button type="button" class="notif-bell-btn" (click)="showNotifPanel = !showNotifPanel"
+            pTooltip="Notifications" tooltipPosition="bottom">
+            <i class="pi pi-bell"></i>
+            <span class="notif-badge" *ngIf="notificationCount > 0">{{ notificationCount }}</span>
+          </button>
+          <div class="notif-panel" *ngIf="showNotifPanel" (mouseleave)="showNotifPanel = false">
+            <div class="notif-header">
+              <strong>Notifications</strong>
+              <div class="notif-header-actions">
+                <span class="notif-count" *ngIf="notificationCount > 0">{{ notificationCount }} unread</span>
+                <button type="button" class="notif-mark-read" *ngIf="panelNotifications.length > 0" (click)="markAllNotifsRead()">Mark all read</button>
+                <button type="button" class="notif-mark-read" *ngIf="panelNotifications.length > 0" (click)="clearReadNotifs()" style="margin-left:4px">Clear read</button>
+              </div>
+            </div>
+            <div class="notif-empty" *ngIf="panelNotifications.length === 0">
+              <i class="pi pi-check-circle"></i> All clear — nothing pending.
+            </div>
+            <button class="notif-item" *ngFor="let n of panelNotifications"
+              [ngClass]="n.read ? 'notif-read' : 'notif-' + n.severity"
+              (click)="handleNotifClick(n)">
+              <span class="notif-unread-dot" *ngIf="!n.read"></span>
+              <i class="pi {{ n.icon }}"></i>
+              <span>{{ n.text }}</span>
+              <i class="pi pi-chevron-right notif-arr"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- User menu -->
+        <button type="button" class="topbar-user" (click)="userMenu.toggle($event)" aria-haspopup="true" aria-controls="user-menu">
+          <p-avatar [label]="avatarInitials(currentDisplayName)" shape="circle" size="large"></p-avatar>
+          <span class="topbar-user-meta">
+            <span class="topbar-user-name">{{ currentDisplayName }}</span>
+            <span class="topbar-user-role">{{ currentRoleLabel }}</span>
+          </span>
+          <i class="pi pi-angle-down" aria-hidden="true"></i>
+        </button>
+        <p-menu #userMenu id="user-menu" [popup]="true" [model]="userMenuItems" appendTo="body"></p-menu>
+      </div>
     </ng-template>
   </p-menubar>
 
-  <div class="shell">
-    <aside class="side" aria-label="Prototype navigation">
-      <p-panelMenu [model]="navMenuItems" [multiple]="false" styleClass="side-menu"></p-panelMenu>
-      <div class="side-meta">
-        <span>Dummy data only</span>
-        <span class="dot">•</span>
-        <span>{{ visibleRecords.length }} visible records</span>
+  <div class="shell" [class.sidebar-collapsed]="sidebarCollapsed">
+
+    <!-- Sidebar Toggle Button -->
+    <button type="button" class="sidebar-toggle-btn" (click)="sidebarCollapsed = !sidebarCollapsed"
+      [pTooltip]="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'" tooltipPosition="right">
+      <i class="pi" [ngClass]="sidebarCollapsed ? 'pi-chevron-right' : 'pi-chevron-left'"></i>
+    </button>
+
+    <aside class="side" aria-label="Prototype navigation" [class.side-collapsed]="sidebarCollapsed">
+      <div *ngIf="!sidebarCollapsed">
+        <div class="action-item-nav-wrap" *ngIf="currentUser.role !== 'Admin' && openActionItemCount > 0">
+          <span class="action-dot-alert">{{ openActionItemCount }} open action item{{ openActionItemCount !== 1 ? 's' : '' }}</span>
+        </div>
+        <p-panelMenu [model]="navMenuItems" [multiple]="false" styleClass="side-menu"></p-panelMenu>
+        <div class="side-meta">
+          <span>Dummy data only</span>
+          <span class="dot">•</span>
+          <span>{{ visibleRecords.length }} records</span>
+        </div>
+      </div>
+      <div *ngIf="sidebarCollapsed" class="side-icon-strip">
+        <button type="button" class="side-icon-btn" (click)="openDashboard()" pTooltip="Dashboard" tooltipPosition="right"><i class="pi pi-home"></i></button>
+        <button type="button" class="side-icon-btn" *ngIf="currentUser.role !== 'Admin'" (click)="openActionBoard()" pTooltip="Assigned Tasks" tooltipPosition="right">
+          <i class="pi pi-list-check"></i>
+          <span class="side-icon-dot" *ngIf="openActionItemCount > 0"></span>
+        </button>
+        <button type="button" class="side-icon-btn" (click)="openCreate()" pTooltip="Create New MOC" tooltipPosition="right"><i class="pi pi-plus"></i></button>
+        <button type="button" class="side-icon-btn" *ngIf="currentUser.role === 'Admin'" (click)="openAdmin()" pTooltip="Checklist Admin" tooltipPosition="right"><i class="pi pi-cog"></i></button>
+        <button type="button" class="side-icon-btn" (click)="openHelp()" pTooltip="Help & Process Guide" tooltipPosition="right"><i class="pi pi-question-circle"></i></button>
       </div>
     </aside>
 
     <main class="content">
       <ng-container *ngIf="view === 'dashboard'">
-        <div class="page-title">
-          <div>
-            <h2>{{ currentUser.role === 'Admin' ? 'All MOCs' : 'My MOCs' }}</h2>
-            <p>{{ currentRoleLabel }} view</p>
+        <!-- Welcome Banner -->
+        <div class="welcome-banner">
+          <div class="welcome-text">
+            <span class="welcome-greeting">{{ greeting }}, {{ currentDisplayName }}</span>
+            <span class="welcome-summary">{{ welcomeSummary }}</span>
           </div>
-          <button type="button" class="primary" *ngIf="canInitiate()" (click)="openCreate()">+ Create New MOC</button>
+          <button type="button" class="btn-primary" *ngIf="canInitiate()" (click)="openCreate()">
+            <i class="pi pi-plus"></i> New MOC
+          </button>
+        </div>
+
+        <div class="page-header">
+          <div class="page-header-left">
+            <h2 class="page-heading">{{
+              currentUser.role === 'Admin' ? 'All MOCs' : 'My MOCs'
+            }} <span class="page-count">{{ filteredVisibleRecords.length }}</span></h2>
+            <p class="page-sub">{{
+              currentUser.role === 'Admin' ? 'All MOCs across the system.' :
+              'MOCs you raised or are assigned to as evaluator, manager, or task assignee.'
+            }}</p>
+          </div>
+          <button *ngIf="kpiFilter !== 'all' || filterStatus || filterPhase || mocFilterText"
+            type="button" class="btn-outline" (click)="clearFilters()">
+            <i class="pi pi-times"></i> Clear Filters
+          </button>
         </div>
 
 
-        <div class="summary-grid">
-          <article>
-            <span>Visible MOCs</span>
-            <strong>{{ totalMocs }}</strong>
-          </article>
-          <article>
-            <span>Pending Review</span>
-            <strong>{{ pendingReview }}</strong>
-          </article>
-          <article>
-            <span>Waiting on Others</span>
-            <strong>{{ waitingOnOthers }}</strong>
-          </article>
-          <article>
-            <span>Closed</span>
-            <strong>{{ closedMocs }}</strong>
-          </article>
-        </div>
-
-        <section class="panel primary-panel">
-          <div class="section-head">
-            <h3>MOC List - Role Visibility</h3>
-            <button type="button" class="secondary danger" (click)="resetDummyData()">Reset Dummy Data</button>
-          </div>
-
-          <div class="empty-state" *ngIf="visibleRecords.length === 0">
-            <i class="pi pi-inbox" style="font-size:2rem;color:#94a3b8"></i>
-            <strong>No MOCs are visible for this role.</strong>
-            <p>Switch roles or create a new MOC as an Owner.</p>
-            <button type="button" class="primary" *ngIf="canInitiate()" (click)="openCreate()">+ Create New MOC</button>
-          </div>
-
-
-          <p-table *ngIf="visibleRecords.length > 0"
-            [value]="visibleRecords"
-            [paginator]="true"
-            [rows]="25"
-            [rowsPerPageOptions]="[10, 25, 50, 100]"
-            [globalFilterFields]="['id','title','workflowState','status']"
-            [filterDelay]="300"
-            sortMode="single"
-            [tableStyle]="{'min-width': '60rem'}"
-            styleClass="p-datatable-striped p-datatable-sm"
-            #dt>
-            <ng-template pTemplate="caption">
-              <div class="grid-toolbar-ptable">
-                <input pInputText type="text" (input)="dt.filterGlobal($any($event.target).value, 'contains')" placeholder="Search MOCs..." class="p-inputtext-sm" />
+        <div class="kpi-grid">
+          <article class="kpi-card kpi-card-total" [class.kpi-active]="kpiFilter==='all'" (click)="kpiFilter='all'" pTooltip="Show all MOCs" tooltipPosition="top">
+            <div class="kpi-inner">
+              <div class="kpi-icon kpi-icon-blue"><i class="pi pi-list"></i></div>
+              <div class="kpi-body">
+                <span class="kpi-label">Total MOCs</span>
+                <strong class="kpi-value">{{ totalMocs }}</strong>
               </div>
-            </ng-template>
-            <ng-template pTemplate="header">
-              <tr>
-                <th pSortableColumn="id">MOC ID <p-sortIcon field="id"></p-sortIcon></th>
-                <th pSortableColumn="title">MOC Title <p-sortIcon field="title"></p-sortIcon></th>
-                <th pSortableColumn="workflowState">Workflow Step <p-sortIcon field="workflowState"></p-sortIcon></th>
-                <th pSortableColumn="status">Status <p-sortIcon field="status"></p-sortIcon></th>
-                <th>Owner</th>
-                <th>Waiting On</th>
-                <th>Assigned To</th>
-                <th>Action Flag</th>
-              </tr>
-            </ng-template>
-            <ng-template pTemplate="body" let-record>
-              <tr (click)="openDetail(record)" style="cursor:pointer">
-                <td>{{ record.id }}</td>
-                <td>{{ record.title }}</td>
-                <td><span class="status">{{ record.workflowState }}</span></td>
-                <td><span class="pill pill-status" [class.is-open]="record.status === 'Open'" [class.is-closed]="record.status === 'Closed'">{{ record.status }}</span></td>
-                <td>{{ userName(record.ownerId) }}</td>
-                <td><span class="pill pill-muted">{{ waitingOnFor(record) }}</span></td>
-                <td>{{ currentAssignedTo(record) }}</td>
-                <td><span class="pill pill-muted">{{ record.actionFlag || '-' }}</span></td>
-              </tr>
-            </ng-template>
-            <ng-template pTemplate="emptymessage">
-              <tr><td colspan="8" class="empty-state compact"><i class="pi pi-search" style="font-size:1.5rem;color:#94a3b8"></i> No MOCs match the filter.</td></tr>
-            </ng-template>
-          </p-table>
-        </section>
-
-        <section class="panel updates-panel compact-updates-panel" *ngIf="routedUpdates.length > 0">
-          <div class="section-head">
-            <div>
-              <h3>Assigned Updates</h3>
-              <p>Recent routing events assigned to you.</p>
             </div>
+          </article>
+          <article class="kpi-card kpi-card-open" [class.kpi-active]="kpiFilter==='open'" (click)="kpiFilter='open'" pTooltip="Filter to open MOCs" tooltipPosition="top">
+            <div class="kpi-inner">
+              <div class="kpi-icon kpi-icon-amber"><i class="pi pi-clock"></i></div>
+              <div class="kpi-body">
+                <span class="kpi-label">Open</span>
+                <strong class="kpi-value">{{ pendingReview }}</strong>
+              </div>
+            </div>
+          </article>
+          <article class="kpi-card kpi-card-wait" [class.kpi-active]="kpiFilter==='waiting'" (click)="kpiFilter='waiting'" pTooltip="Filter to MOCs waiting on others" tooltipPosition="top">
+            <div class="kpi-inner">
+              <div class="kpi-icon kpi-icon-purple"><i class="pi pi-users"></i></div>
+              <div class="kpi-body">
+                <span class="kpi-label">Waiting on Others</span>
+                <strong class="kpi-value">{{ waitingOnOthers }}</strong>
+              </div>
+            </div>
+          </article>
+          <article class="kpi-card kpi-card-closed" [class.kpi-active]="kpiFilter==='closed'" (click)="kpiFilter='closed'" pTooltip="Filter to closed MOCs" tooltipPosition="top">
+            <div class="kpi-inner">
+              <div class="kpi-icon kpi-icon-green"><i class="pi pi-check-circle"></i></div>
+              <div class="kpi-body">
+                <span class="kpi-label">Closed</span>
+                <strong class="kpi-value">{{ closedMocs }}</strong>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <section class="pro-table-card">
+          <div class="pro-table-toolbar">
+            <div class="pro-search-wrap">
+              <i class="pi pi-search pro-search-icon"></i>
+              <input
+                class="pro-search-input"
+                type="text"
+                [(ngModel)]="mocFilterText"
+                (ngModelChange)="mocPage=1"
+                placeholder="Search by ID, title, owner…"
+              />
+            </div>
+            <select class="pro-filter-select" [(ngModel)]="filterStatus" (ngModelChange)="mocPage=1">
+              <option value="">All Statuses</option>
+              <option value="Open">Open</option>
+              <option value="Closed">Closed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+            <select class="pro-filter-select" [(ngModel)]="filterPhase" (ngModelChange)="mocPage=1">
+              <option value="">All Phases</option>
+              <option value="Evaluation">Evaluation</option>
+              <option value="Approval to Implement">Approval to Implement</option>
+              <option value="Implementation">Implementation</option>
+              <option value="PSSR">PSSR</option>
+              <option value="Approval for Start Up">Approval for Start Up</option>
+              <option value="Ready for Closure">Ready for Closure</option>
+              <option value="Closed">Closed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
           </div>
-          <div class="updates-compact-wrap">
-            <table class="updates-compact-table">
+
+          <div class="pro-empty" *ngIf="visibleRecords.length === 0">
+            <i class="pi pi-inbox"></i>
+            <strong>No MOCs visible for this role.</strong>
+            <p>Switch roles or create a new MOC as an Owner.</p>
+            <button type="button" class="btn-primary" *ngIf="canInitiate()" (click)="openCreate()">
+              <i class="pi pi-plus"></i> Create New MOC
+            </button>
+          </div>
+
+          <div class="pro-table-wrap" *ngIf="filteredVisibleRecords.length > 0">
+            <table class="pro-table">
               <thead>
                 <tr>
-                  <th>MOC</th>
-                  <th>Update</th>
-                  <th>Time</th>
+                  <th (click)="sortBy('id')" style="cursor:pointer;user-select:none">MOC ID <i class="pi sort-icon" [ngClass]="sortColumn==='id' ? (sortDir===1 ? 'pi-sort-amount-up-alt' : 'pi-sort-amount-down-alt') : 'pi-sort-alt'"></i></th>
+                  <th (click)="sortBy('title')" style="cursor:pointer;user-select:none">MOC TITLE <i class="pi sort-icon" [ngClass]="sortColumn==='title' ? (sortDir===1 ? 'pi-sort-amount-up-alt' : 'pi-sort-amount-down-alt') : 'pi-sort-alt'"></i></th>
+                  <th (click)="sortBy('date')" style="cursor:pointer;user-select:none">TARGET DATE <i class="pi sort-icon" [ngClass]="sortColumn==='date' ? (sortDir===1 ? 'pi-sort-amount-up-alt' : 'pi-sort-amount-down-alt') : 'pi-sort-alt'"></i></th>
+                  <th (click)="sortBy('state')" style="cursor:pointer;user-select:none">WORKFLOW STEP <i class="pi sort-icon" [ngClass]="sortColumn==='state' ? (sortDir===1 ? 'pi-sort-amount-up-alt' : 'pi-sort-amount-down-alt') : 'pi-sort-alt'"></i></th>
+                  <th>DISCIPLINES</th>
+                  <th>EVAL PROGRESS</th>
+                  <th (click)="sortBy('waiting')" style="cursor:pointer;user-select:none">WAITING ON <i class="pi sort-icon" [ngClass]="sortColumn==='waiting' ? (sortDir===1 ? 'pi-sort-amount-up-alt' : 'pi-sort-amount-down-alt') : 'pi-sort-alt'"></i></th>
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let update of routedUpdates">
-                  <td>{{ update.record.id }}</td>
-                  <td [title]="update.event.note">{{ update.event.note }}</td>
-                  <td>{{ update.event.at | date: 'MMM d, h:mm a' }}</td>
+                <tr *ngFor="let record of pagedRecords" (click)="openDetail(record)" class="pro-row" style="cursor:pointer">
+                  <td class="col-id">
+                    <span class="moc-id-link">{{ record.id }}</span>
+                  </td>
+                  <td class="col-title">{{ record.title }}</td>
+                  <td class="col-date">{{ record.implementationDate | date:'MMM d, y' }}</td>
+                  <td class="col-state">
+                    <span class="state-badge" [ngClass]="workflowStateBadgeClass(record.workflowState)">
+                      {{ record.workflowState }}
+                    </span>
+                  </td>
+                  <td class="col-disciplines">
+                    <span
+                      *ngFor="let d of record.disciplines"
+                      class="disc-chip"
+                      [ngClass]="disciplineBadgeClass(d)"
+                    >{{ d }}</span>
+                  </td>
+                  <td class="col-progress">
+                    <span class="eval-prog" [ngClass]="evalProgressClass(record)">
+                      {{ evalProgress(record) }}
+                    </span>
+                  </td>
+                  <td class="col-waiting">
+                    <ng-container *ngIf="record.status === 'Open'">
+                      <span class="waiting-icon-chip" [attr.data-who]="record.waitingOn">
+                        <i class="pi"
+                          [ngClass]="{
+                            'pi-user': record.waitingOn === 'Owner',
+                            'pi-users': record.waitingOn === 'Manager',
+                            'pi-search': record.waitingOn === 'Evaluator',
+                            'pi-wrench': record.waitingOn === 'Operations',
+                            'pi-list-check': record.waitingOn === 'Action Owner',
+                            'pi-clock': record.waitingOn === 'Post-Startup Action',
+                            'pi-check-circle': record.waitingOn === '-'
+                          }"
+                        ></i>
+                        {{ waitingOnLabel(record) }}
+                      </span>
+                    </ng-container>
+                    <span class="pill is-closed" *ngIf="record.status !== 'Open'">
+                      <i class="pi pi-check-circle"></i> {{ record.status }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination-bar" *ngIf="totalPages > 1">
+            <button class="pag-btn" (click)="mocPage=1" [disabled]="mocPage===1">«</button>
+            <button class="pag-btn" (click)="mocPage=mocPage-1" [disabled]="mocPage===1">‹</button>
+            <span class="pag-info">Page {{ mocPage }} of {{ totalPages }}</span>
+            <button class="pag-btn" (click)="mocPage=mocPage+1" [disabled]="mocPage===totalPages">›</button>
+            <button class="pag-btn" (click)="mocPage=totalPages" [disabled]="mocPage===totalPages">»</button>
+          </div>
+
+          <div class="pro-empty compact" *ngIf="filteredVisibleRecords.length === 0 && visibleRecords.length > 0">
+            <i class="pi pi-search"></i>
+            <strong>No MOCs match your search.</strong>
+          </div>
+        </section>
+
+
+      </ng-container>
+
+      <ng-container *ngIf="view === 'actions'">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h2 class="page-heading">Assigned Tasks</h2>
+            <p class="page-sub">MOCs you are assigned to (as evaluator, manager, or PSSR) and action items assigned to you.</p>
+          </div>
+        </div>
+
+        <!-- ── Section 1: Assigned MOCs ── -->
+        <div class="at-section-head">
+          <i class="pi pi-folder-open"></i> Assigned MOCs
+          <span class="page-count">{{ assignedRecords.length }}</span>
+        </div>
+
+        <section class="pro-table-card" style="margin-bottom:20px">
+          <div class="pro-empty" *ngIf="assignedRecords.length === 0">
+            <i class="pi pi-inbox"></i>
+            <strong>No MOCs currently assigned to you.</strong>
+            <p>MOCs where you are an evaluator, manager, or PSSR reviewer will appear here.</p>
+          </div>
+          <div class="pro-table-wrap" *ngIf="assignedRecords.length > 0">
+            <table class="pro-table">
+              <thead>
+                <tr>
+                  <th>MOC ID</th>
+                  <th>MOC TITLE</th>
+                  <th>TARGET DATE</th>
+                  <th>WORKFLOW STEP</th>
+                  <th>YOUR ROLE</th>
+                  <th>STATUS</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let record of assignedRecords" (click)="openDetail(record)" class="pro-row" style="cursor:pointer">
+                  <td class="col-id"><span class="moc-id-link">{{ record.id }}</span></td>
+                  <td class="col-title">{{ record.title }}</td>
+                  <td class="col-date">{{ record.implementationDate | date:'MMM d, y' }}</td>
+                  <td>
+                    <span class="state-badge" [ngClass]="workflowStateBadgeClass(record.workflowState)">
+                      {{ record.workflowState }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="disc-chip" *ngIf="record.managerId === currentUser?.id">Manager</span>
+                    <span class="disc-chip" *ngIf="record.evaluatorIds.includes(currentUser?.id!)">Evaluator</span>
+                    <span class="disc-chip" *ngIf="currentUser?.discipline === 'Operations' && record.workflowState === 'PSSR'">PSSR</span>
+                    <span class="disc-chip" *ngIf="record.actionItems.some(ai => ai.assigneeId === currentUser?.id)">Action Item</span>
+                  </td>
+                  <td>
+                    <span class="pill" [class.is-closed]="record.status === 'Closed'" [class.pill-status]="record.status === 'Open'">
+                      {{ record.status }}
+                    </span>
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
         </section>
-      </ng-container>
 
-      <ng-container *ngIf="view === 'actions'">
-        <div class="page-title">
-          <div>
-            <h2>My Action Items</h2>
-            <p>Assigned action work</p>
-          </div>
+        <!-- ── Section 2: Action Items ── -->
+        <div class="at-section-head">
+          <i class="pi pi-list-check"></i> Action Items
+          <span class="page-count">{{ myActionItems.length }}</span>
         </div>
 
-        <section class="panel">
-          <div class="empty-state" *ngIf="myActionItems.length === 0">
-            <i class="pi pi-check-circle" style="font-size:2rem;color:#94a3b8"></i>
+        <section class="pro-table-card">
+          <div class="pro-empty" *ngIf="myActionItems.length === 0">
+            <i class="pi pi-check-circle"></i>
             <strong>No action items assigned.</strong>
-            <p>Action items routed to this user will appear here.</p>
+            <p>Action items assigned to you across all MOCs will appear here.</p>
           </div>
-
-          <div class="table-wrap" *ngIf="myActionItems.length > 0">
-            <table>
+          <div class="pro-table-wrap" *ngIf="myActionItems.length > 0">
+            <table class="pro-table">
               <thead>
                 <tr>
-                  <th>Action ID</th>
+                  <th>ACTION ID</th>
                   <th>MOC ID</th>
-                  <th>MOC Title</th>
-                  <th>Phase</th>
-                  <th>Description</th>
-                  <th>Assigned To</th>
-                  <th>Due Date</th>
-                  <th>Status</th>
-                  <th>Open</th>
+                  <th>MOC TITLE</th>
+                  <th>PHASE</th>
+                  <th>PRIORITY</th>
+                  <th>DESCRIPTION</th>
+                  <th>DUE DATE</th>
+                  <th>STATUS</th>
+                  <th>ACTION</th>
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let row of myActionItems">
-                  <td>{{ row.item.id }}</td>
-                  <td>{{ row.record.id }}</td>
-                  <td>{{ row.record.title }}</td>
-                  <td>{{ row.item.phase }}</td>
-                  <td>{{ row.item.description }}</td>
-                  <td>{{ userName(row.item.assigneeId) }}</td>
-                  <td>{{ row.item.dueDate }}</td>
-                  <td>{{ row.item.complete ? 'Complete' : 'Open' }}</td>
+                <tr *ngFor="let row of myActionItems" class="pro-row">
+                  <td class="col-id"><span class="moc-id-link">{{ row.item.id }}</span></td>
+                  <td><span class="moc-id-link">{{ row.record.id }}</span></td>
+                  <td class="col-title">{{ row.record.title }}</td>
                   <td>
-                    <button type="button" class="secondary" (click)="openFromActionBoard(row)">Open MOC</button>
+                    <span class="phase-badge"
+                      [class.phase-eval]="row.item.phase === 'Evaluation' && !row.item.complete"
+                      [class.phase-pre]="row.item.phase === 'Pre-Startup' && !row.item.complete"
+                      [class.phase-post]="row.item.phase === 'Post-Startup' && !row.item.complete"
+                      [class.phase-done]="row.item.complete"
+                    >{{ row.item.phase }}</span>
+                  </td>
+                  <td>
+                    <span class="priority-badge"
+                      [class.priority-critical]="row.item.priority === 'Critical'"
+                      [class.priority-high]="row.item.priority === 'High'"
+                      [class.priority-normal]="!row.item.priority || row.item.priority === 'Normal'"
+                    >{{ row.item.priority || 'Normal' }}</span>
+                  </td>
+                  <td>{{ row.item.description }}</td>
+                  <td class="col-date">
+                    <span [class.overdue-text]="!row.item.complete && isOverdue(row.item.dueDate)">
+                      {{ row.item.dueDate | date:'MMM d, y' }}
+                      <i class="pi pi-exclamation-triangle overdue-icon" *ngIf="!row.item.complete && isOverdue(row.item.dueDate)"></i>
+                    </span>
+                  </td>
+                  <td>
+                    <span class="pill" [class.pill-status]="!row.item.complete" [class.is-closed]="row.item.complete">
+                      {{ row.item.complete ? 'Complete' : 'Open' }}
+                    </span>
+                  </td>
+                  <td class="col-action">
+                    <button type="button" class="btn-view" (click)="openFromActionBoard(row)">
+                      Open <i class="pi pi-arrow-right"></i>
+                    </button>
+                    <small class="stage-note" *ngIf="!row.item.complete && row.item.assigneeId === currentUser?.id">
+                      {{ actionItemStageNote(row.item) }}
+                    </small>
                   </td>
                 </tr>
               </tbody>
@@ -241,12 +534,14 @@
       </ng-container>
 
       <ng-container *ngIf="view === 'admin' && currentUser.role === 'Admin'">
-        <div class="page-title">
-          <div>
-            <h2>Checklist Configuration</h2>
-            <p>Templates for new MOCs</p>
+        <div class="page-header">
+          <div class="page-header-left">
+            <h2 class="page-heading">Checklist Configuration</h2>
+            <p class="page-sub">Templates apply to new MOCs only. In-progress MOC checklists are not affected.</p>
           </div>
-          <button type="button" class="primary" (click)="saveChecklistTemplates()">Save Checklist Templates</button>
+          <button type="button" class="btn-primary" (click)="saveChecklistTemplates()">
+            <i class="pi pi-save"></i> Save Templates
+          </button>
         </div>
 
         <section class="panel admin-grid">
@@ -296,98 +591,231 @@
         </section>
       </ng-container>
 
+      <!-- ─────────────── HELP VIEW ─────────────── -->
+      <ng-container *ngIf="view === 'help'">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h2 class="page-heading"><i class="pi pi-question-circle" style="color:#1463A5"></i> MOC Process Guide</h2>
+            <p class="page-sub">Step-by-step process flow with role responsibilities and key rules.</p>
+          </div>
+        </div>
+
+        <div class="help-flow">
+
+          <div class="help-step hs-initiated">
+            <div class="hs-badge">1</div>
+            <div class="hs-body">
+              <h4>Initiation</h4>
+              <span class="hs-role">Role: MOC Owner</span>
+              <p>The Owner identifies a proposed change and initiates an MOC. Fills in title, description, basis, disciplines, target implementation date, and uploads a supporting document.</p>
+              <ul>
+                <li>Select all relevant engineering disciplines</li>
+                <li>A confirmation popup appears before submission — once submitted it cannot be edited</li>
+                <li>System automatically routes to assigned Evaluators</li>
+              </ul>
+            </div>
+          </div>
+          <div class="hs-connector"><i class="pi pi-arrow-down"></i></div>
+
+          <div class="help-step hs-eval">
+            <div class="hs-badge">2</div>
+            <div class="hs-body">
+              <h4>Evaluation</h4>
+              <span class="hs-role">Role: Evaluators (discipline-specific)</span>
+              <p>Each assigned Evaluator completes their discipline checklist and may raise action items. Evaluation action items assigned to the evaluator themselves must be closed before they can complete their evaluation.</p>
+              <ul>
+                <li>Complete all required checklist items</li>
+                <li>Raise Evaluation, Pre-Startup, or Post-Startup action items as needed</li>
+                <li>Action items assigned to others only block the overall MOC from advancing — not the individual evaluator</li>
+                <li>All Evaluation-phase action items must be closed before the Owner can advance</li>
+              </ul>
+            </div>
+          </div>
+          <div class="hs-connector"><i class="pi pi-arrow-down"></i></div>
+
+          <div class="help-step hs-approval">
+            <div class="hs-badge">3</div>
+            <div class="hs-body">
+              <h4>Approval to Implement</h4>
+              <span class="hs-role">Role: Owner → Manager</span>
+              <p>Once all evaluations and evaluation action items are complete, the Owner submits for approval. The Manager then reviews and decides.</p>
+              <ul>
+                <li><strong>Owner</strong> — clicks "Submit for Approval to Implement"</li>
+                <li><strong>Manager</strong> — reviews evaluation results and approves OR rejects with a mandatory comment</li>
+                <li>If rejected, all evaluations are reset. Owner revises and resubmits</li>
+                <li>If cancelled by manager, the MOC is permanently closed</li>
+                <li>Routing tracker records all decisions with timestamps and comments</li>
+              </ul>
+            </div>
+          </div>
+          <div class="hs-connector"><i class="pi pi-arrow-down"></i></div>
+
+          <div class="help-step hs-impl">
+            <div class="hs-badge">4</div>
+            <div class="hs-body">
+              <h4>Implementation</h4>
+              <span class="hs-role">Role: Owner</span>
+              <p>Once the Manager approves, the Owner must manually click "Begin Implementation" to start work. This gives the Owner full control over when physical work begins.</p>
+              <ul>
+                <li><strong>Begin Implementation</strong> — Owner confirms work has started</li>
+                <li><strong>Mark Implementation Complete</strong> — Owner confirms all field work is done</li>
+                <li>The MOC then routes to PSSR</li>
+              </ul>
+            </div>
+          </div>
+          <div class="hs-connector"><i class="pi pi-arrow-down"></i></div>
+
+          <div class="help-step hs-pssr">
+            <div class="hs-badge">5</div>
+            <div class="hs-body">
+              <h4>PSSR (Pre-Startup Safety Review)</h4>
+              <span class="hs-role">Role: Operations Supervisor → Owner</span>
+              <p>Operations completes the PSSR checklist. Pre-Startup action items (raised earlier) must all be closed during this phase before PSSR can be submitted.</p>
+              <ul>
+                <li>Pre-Startup action items are <strong>only completable during the PSSR step</strong></li>
+                <li>Only the person assigned to the action item can complete it</li>
+                <li>Operations clicks "Submit PSSR for Review" — MOC <em>stays in PSSR state</em> with status "PSSR Completed"</li>
+                <li>Owner reviews and then manually clicks "Submit for Startup Approval" to advance</li>
+              </ul>
+            </div>
+          </div>
+          <div class="hs-connector"><i class="pi pi-arrow-down"></i></div>
+
+          <div class="help-step hs-startup">
+            <div class="hs-badge">6</div>
+            <div class="hs-body">
+              <h4>Approval for Start Up</h4>
+              <span class="hs-role">Role: Manager → Owner</span>
+              <p>Manager reviews PSSR results and approves or rejects startup with mandatory comments.</p>
+              <ul>
+                <li><strong>Approve Start Up</strong> — Owner proceeds to Ready for Closure / Post-Startup Review</li>
+                <li><strong>Reject — Send Back to PSSR</strong> — with mandatory reason, for additional review</li>
+                <li>All decisions are recorded in Approval History at the bottom of the MOC page</li>
+              </ul>
+            </div>
+          </div>
+          <div class="hs-connector"><i class="pi pi-arrow-down"></i></div>
+
+          <div class="help-step hs-closure">
+            <div class="hs-badge">7</div>
+            <div class="hs-body">
+              <h4>Ready for Closure / Post-Startup Review</h4>
+              <span class="hs-role">Role: Assigned Action Item Owners → Owner</span>
+              <p>Post-Startup action items (raised during PSSR) must be completed by their assigned persons during this phase. Only then can the Owner close the MOC.</p>
+              <ul>
+                <li>Post-Startup action items are <strong>only completable at this stage</strong></li>
+                <li>Only the assigned person can mark their own action item complete</li>
+                <li>Completion requires a closure comment (and optionally an evidence file)</li>
+                <li>Owner closes the MOC once all post-startup items are done</li>
+              </ul>
+            </div>
+          </div>
+          <div class="hs-connector"><i class="pi pi-arrow-down"></i></div>
+
+          <div class="help-step hs-closed">
+            <div class="hs-badge"><i class="pi pi-check"></i></div>
+            <div class="hs-body">
+              <h4>Closed</h4>
+              <span class="hs-role">Final State</span>
+              <p>The MOC is closed with a closure date, closing user, and full audit trail. All history is preserved in the routing tracker.</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Key Rules -->
+        <section class="panel" style="margin-top:24px">
+          <div class="section-head sh-amber">
+            <div class="section-head-left">
+              <h3><i class="pi pi-shield"></i> Key Rules &amp; Guardrails</h3>
+            </div>
+          </div>
+          <div class="help-rules">
+            <div class="help-rule"><i class="pi pi-lock" style="color:#1463A5"></i><span><strong>Assigned person only</strong> — Action items can only be completed by the person they are assigned to. No exceptions except Admin.</span></div>
+            <div class="help-rule"><i class="pi pi-clock" style="color:#f59e0b"></i><span><strong>Stage enforcement</strong> — Pre-Startup items: PSSR step only. Post-Startup items: Ready for Closure step only. Evaluation items: Evaluation step only.</span></div>
+            <div class="help-rule"><i class="pi pi-info-circle" style="color:#10b981"></i><span><strong>Mandatory comments</strong> — Manager rejections and cancellations require a written reason before the action button activates.</span></div>
+            <div class="help-rule"><i class="pi pi-history" style="color:#8b5cf6"></i><span><strong>Full audit trail</strong> — All state changes, approvals, and rejections are recorded with timestamps and user identity in the Routing Tracker.</span></div>
+            <div class="help-rule"><i class="pi pi-user" style="color:#ef4444"></i><span><strong>Owner controls advancement</strong> — At key gates (post-approval, post-PSSR completion) the Owner must manually advance the MOC. Nothing advances automatically.</span></div>
+          </div>
+        </section>
+      </ng-container>
+      <!-- ─────────────── END HELP VIEW ─────────────── -->
+
       <ng-container *ngIf="view === 'detail' && selectedMoc">
         <nav class="breadcrumb" aria-label="Breadcrumb">
-          <a (click)="openDashboard()">Dashboard</a>
-          <span class="breadcrumb-sep">/</span>
+          <a class="breadcrumb-link" (click)="openDashboard()"><i class="pi pi-home"></i> Dashboard</a>
+          <i class="pi pi-chevron-right breadcrumb-sep"></i>
           <span class="breadcrumb-current">{{ selectedMoc.id }}</span>
         </nav>
-        <div class="page-title">
-          <div>
-            <h2>{{ selectedMoc.id }} - {{ selectedMoc.title }}</h2>
-            <p>{{ workflowProgressLabel(selectedMoc) }}</p>
+        <div class="page-header">
+          <div class="page-header-left">
+            <h2 class="page-heading detail-heading">
+              <span class="detail-id">{{ selectedMoc.id }}</span>
+              {{ selectedMoc.title }}
+            </h2>
+            <p class="page-sub">{{ workflowProgressLabel(selectedMoc) }}</p>
           </div>
-          <span class="status">{{ selectedMoc.workflowState }}</span>
+          <span class="state-badge lg" [ngClass]="workflowStateBadgeClass(selectedMoc.workflowState)">
+            {{ selectedMoc.workflowState }}
+          </span>
         </div>
 
         <section class="panel workflow-map-panel" aria-label="Workflow map">
-          <div class="workflow-map-head">
-            <div>
-              <h3>Workflow Map</h3>
+          <div class="section-head sh-blue">
+            <div class="section-head-left">
+              <h3><i class="pi pi-sitemap"></i> Workflow Map</h3>
               <p>1 to 8 progression in the required order.</p>
             </div>
             <div class="workflow-map-actions">
-              <button pButton type="button" icon="pi pi-history" label="Routing Tracker" class="p-button-outlined p-button-sm" (click)="showRoutingTracker = true"></button>
+              <button pButton type="button" icon="pi pi-print" label="Print MOC" class="p-button-outlined p-button-sm"
+                (click)="printMoc()"
+                pTooltip="Print a summary of this MOC record" tooltipPosition="bottom"></button>
+              <button pButton type="button" icon="pi pi-history" label="Routing Tracker" class="p-button-outlined p-button-sm"
+                (click)="showRoutingTracker = true"
+                pTooltip="View full audit trail and routing history" tooltipPosition="bottom"></button>
             </div>
           </div>
 
-          <div class="workflow-stepper" aria-label="Workflow stepper">
-            <div class="workflow-legend" aria-label="Legend">
+          <!-- Glassmorphism Stepper -->
+          <div class="glass-stepper-wrap">
+            <div class="glass-legend" style="margin-bottom:12px;">
               <span class="legend-item"><span class="dot done"></span>Complete</span>
-              <span class="legend-item"><span class="dot current"></span>Current</span>
+              <span class="legend-item"><span class="dot current"></span>In Progress</span>
               <span class="legend-item"><span class="dot upcoming"></span>Upcoming</span>
             </div>
-            <!-- Route map: single line with fixed nodes and colored connectors. -->
-            <div class="route-map-svg" aria-label="Workflow route map">
-              <svg viewBox="0 0 1000 140" preserveAspectRatio="none" aria-hidden="true">
-                <defs>
-                  <filter id="node-shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.15"/></filter>
-                  <marker id="arrow-done" markerWidth="12" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L12,6 L0,12 z" fill="#16a34a"></path>
-                  </marker>
-                  <marker id="arrow-current" markerWidth="12" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L12,6 L0,12 z" fill="#2563eb"></path>
-                  </marker>
-                  <marker id="arrow-upcoming" markerWidth="12" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L12,6 L0,12 z" fill="#cbd5e1"></path>
-                  </marker>
-                </defs>
-
-                <ng-container *ngFor="let step of workflowSteps; let i = index">
-                  <line
-                    *ngIf="i < workflowSteps.length - 1"
-                    [attr.x1]="routeMapX(i)"
-                    [attr.y1]="routeMapY"
-                    [attr.x2]="routeMapX(i + 1)"
-                    [attr.y2]="routeMapY"
-                    [attr.stroke]="connectorStroke(selectedMoc, i)"
-                    stroke-width="6"
-                    stroke-linecap="round"
-                    [attr.marker-end]="'url(#' + connectorMarkerId(selectedMoc, i) + ')'"
-                  ></line>
-                </ng-container>
-
-                <ng-container *ngFor="let step of workflowSteps; let i = index">
-                  <circle
-                    [attr.cx]="routeMapX(i)"
-                    [attr.cy]="routeMapY"
-                    r="28"
-                    [attr.fill]="mapNodeFill(selectedMoc, i)"
-                    [attr.stroke]="mapNodeStroke(selectedMoc, i)"
-                    stroke-width="4" filter="url(#node-shadow)"
-                  ></circle>
-                  <text [attr.x]="routeMapX(i)" [attr.y]="routeMapY + 6" text-anchor="middle" font-size="16" font-weight="700" [attr.fill]="workflowStepState(selectedMoc, workflowSteps[i].key) === 'Upcoming' ? '#64748b' : '#ffffff'">
-                    {{ i + 1 }}
-                  </text>
-                </ng-container>
-              </svg>
-
-              <div class="route-label-grid" role="list">
-                <div
-                  *ngFor="let step of workflowSteps; let i = index"
-                  class="route-label"
-                  role="listitem"
-                  [class.is-done]="workflowStepState(selectedMoc, step.key) === 'Complete'"
-                  [class.is-current]="workflowStepState(selectedMoc, step.key) === 'Current'"
-                >
-                  {{ step.label }}
+            <div class="glass-step-row" aria-label="Workflow stepper" role="list">
+              <div class="glass-step"
+                *ngFor="let step of workflowSteps; let i = index"
+                [class.gs-done]="workflowStepState(selectedMoc, step.key) === 'Complete'"
+                [class.gs-current]="workflowStepState(selectedMoc, step.key) === 'Current'"
+                [class.gs-upcoming]="workflowStepState(selectedMoc, step.key) === 'Upcoming'"
+                role="listitem"
+                [attr.aria-current]="workflowStepState(selectedMoc, step.key) === 'Current' ? 'step' : null"
+              >
+                <div class="gs-badge">
+                  <i class="pi pi-check" *ngIf="workflowStepState(selectedMoc, step.key) === 'Complete'"></i>
+                  <span *ngIf="workflowStepState(selectedMoc, step.key) !== 'Complete'">{{ i + 1 }}</span>
                 </div>
+                <span class="gs-name">{{ step.label }}</span>
+              </div>
+            </div>
+            <!-- progress glow bar -->
+            <div class="glass-progress-bar">
+              <div class="glass-progress-fill"
+                [style.width]="(completedStepCount(selectedMoc) / workflowSteps.length * 100) + '%'">
               </div>
             </div>
           </div>
         </section>
 
-        <section class="panel readonly-grid">
+        <section class="panel">
+          <div class="section-head sh-teal">
+            <div class="section-head-left">
+              <h3><i class="pi pi-info-circle"></i> MOC Details</h3>
+              <p>Initiation fields and supporting document.</p>
+            </div>
+          </div>
+        <div class="readonly-grid">
           <div>
             <span>Current workflow step</span>
             <strong>{{ selectedMoc.workflowState }}</strong>
@@ -404,6 +832,7 @@
           <div>
             <span>MOC Owner</span>
             <strong>{{ userName(selectedMoc.ownerId) }}</strong>
+            <small style="color:#64748b;display:block">{{ userTitle(selectedMoc.ownerId) }}</small>
           </div>
           <div>
             <span>Assigned Evaluators</span>
@@ -419,7 +848,9 @@
           </div>
           <div>
             <span>Disciplines</span>
-            <strong>{{ selectedMoc.disciplines.join(', ') }}</strong>
+            <div class="disc-list">
+              <span *ngFor="let d of selectedMoc.disciplines" class="disc-chip" [ngClass]="disciplineBadgeClass(d)">{{ d }}</span>
+            </div>
           </div>
           <div class="supporting-doc">
             <span>Supporting Document</span>
@@ -430,7 +861,10 @@
           </div>
           <div>
             <span>Implementation Date</span>
-            <strong>{{ selectedMoc.implementationDate }}</strong>
+            <strong [class.overdue-text]="isOverdue(selectedMoc.implementationDate) && selectedMoc.status === 'Open'">
+              {{ selectedMoc.implementationDate | date:'MMM d, y' }}
+              <i class="pi pi-exclamation-triangle overdue-icon" *ngIf="isOverdue(selectedMoc.implementationDate) && selectedMoc.status === 'Open'"></i>
+            </strong>
           </div>
           <div>
             <span>Created Date</span>
@@ -444,39 +878,75 @@
             <span>Closed By</span>
             <strong>{{ userName(selectedMoc.closedByUserId) }}</strong>
           </div>
+        </div>
         </section>
 
         <section class="panel work-panel" *ngIf="canEditRework(selectedMoc)">
-          <div class="section-head">
-            <div>
-              <h3>Rework Update</h3>
-              <p>Manager sent this MOC back to Evaluation. Owner can edit initiation fields and resubmit.</p>
+          <div class="section-head sh-red">
+            <div class="section-head-left">
+              <h3><i class="pi pi-pencil"></i> Rework Update</h3>
+              <p>Manager rejected this MOC. Edit the fields below and save to re-route for evaluation.</p>
             </div>
           </div>
-          <p class="error" *ngIf="reworkNotice">Manager Comment: {{ reworkNotice }}</p>
+
+          <!-- Manager rejection comment -->
+          <div class="rework-notice" *ngIf="reworkNotice">
+            <i class="pi pi-comment"></i>
+            <div>
+              <span class="rework-notice-label">Manager Comment</span>
+              <span class="rework-notice-text">{{ reworkNotice }}</span>
+            </div>
+          </div>
+
+          <!-- Before / After snapshot diff (shown once snapshot exists) -->
+          <div class="rework-diff-wrap" *ngIf="selectedMoc.reworkSnapshot">
+            <div class="rework-diff-head">
+              <i class="pi pi-arrows-h"></i> Changes from Rejected Version
+            </div>
+            <table class="rework-diff-table">
+              <thead>
+                <tr>
+                  <th class="rdf-field">Field</th>
+                  <th class="rdf-before">Before (Rejected)</th>
+                  <th class="rdf-after">After (Rework)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of getReworkDiff(selectedMoc)" [class.rdf-changed]="row.changed">
+                  <td class="rdf-field">{{ row.field }}</td>
+                  <td class="rdf-before">{{ row.before }}</td>
+                  <td class="rdf-after">{{ row.after }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Editable rework fields -->
           <div class="rework-grid">
-            <label>
-              Title
-              <input [(ngModel)]="selectedMoc.title" name="reworkTitle" />
-            </label>
-            <label class="wide">
-              Description
-              <textarea [(ngModel)]="selectedMoc.description" rows="3" name="reworkDescription"></textarea>
-            </label>
-            <label class="wide">
-              Basis / Justification
-              <textarea [(ngModel)]="selectedMoc.basis" rows="3" name="reworkBasis"></textarea>
-            </label>
-            <label>
-              Date Needed By
-              <input type="date" [min]="minDate" [(ngModel)]="selectedMoc.implementationDate" name="reworkDate" />
-            </label>
-            <label>
-              Replace Supporting Document
-              <input type="file" name="reworkFile" (change)="onReworkFileSelected($event, selectedMoc)" />
-            </label>
-            <div class="field-block wide">
-              <label class="group-label">Disciplines</label>
+            <div class="rework-field">
+              <label class="rework-label" for="reworkTitle">Title</label>
+              <input id="reworkTitle" [(ngModel)]="selectedMoc.title" name="reworkTitle" class="rework-input" />
+            </div>
+            <div class="rework-field wide">
+              <label class="rework-label" for="reworkDesc">Description</label>
+              <textarea id="reworkDesc" [(ngModel)]="selectedMoc.description" rows="3" name="reworkDescription" class="rework-input"></textarea>
+            </div>
+            <div class="rework-field wide">
+              <label class="rework-label" for="reworkBasis">Basis / Justification</label>
+              <textarea id="reworkBasis" [(ngModel)]="selectedMoc.basis" rows="3" name="reworkBasis" class="rework-input"></textarea>
+            </div>
+            <div class="rework-field">
+              <label class="rework-label" for="reworkDate">Date Needed By</label>
+              <input id="reworkDate" type="date" [min]="minDate" [(ngModel)]="selectedMoc.implementationDate" name="reworkDate" class="rework-input" />
+            </div>
+            <div class="rework-field">
+              <label class="rework-label">Replace Supporting Document</label>
+              <input type="file" name="reworkFile" class="rework-input"
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+                (change)="onReworkFileSelected($event, selectedMoc)" />
+            </div>
+            <div class="rework-field wide">
+              <label class="rework-label">Disciplines</label>
               <div class="checkbox-dropdown">
                 <label *ngFor="let discipline of disciplineOptions" class="checkline">
                   <input
@@ -489,119 +959,52 @@
               </div>
             </div>
           </div>
-          <button type="button" class="primary" (click)="saveReworkEdits(selectedMoc)">Save Rework Fields</button>
+          <div class="rework-actions">
+            <button type="button" class="btn-primary" (click)="saveReworkEdits(selectedMoc)">
+              <i class="pi pi-send"></i> Save &amp; Submit for Re-Evaluation
+            </button>
+          </div>
         </section>
 
-        <section class="panel work-panel">
-          <div class="section-head">
-            <div>
-              <h3>Approval History</h3>
-              <p>All implementation/startup decisions are recorded with date and comment.</p>
+<!-- Rework Changes — read-only view for evaluators after rework submission -->
+        <section class="panel work-panel"
+          *ngIf="selectedMoc.reworkSnapshot && selectedMoc.workflowState === 'Evaluation' && !canEditRework(selectedMoc)">
+          <div class="section-head sh-amber" style="cursor:pointer" (click)="reworkSummaryCollapsed = !reworkSummaryCollapsed">
+            <div class="section-head-left">
+              <h3><i class="pi pi-arrows-h"></i> Rework Changes Summary</h3>
+              <p>Owner updated these fields after manager rejection. Compare original vs. revised values below.</p>
             </div>
+            <i class="pi" [ngClass]="reworkSummaryCollapsed ? 'pi-chevron-down' : 'pi-chevron-up'" style="color:var(--text-muted);font-size:14px"></i>
           </div>
-          <div class="empty-state compact" *ngIf="selectedMoc.approvalHistory.length === 0">
-            <i class="pi pi-clock" style="font-size:1.5rem;color:#94a3b8"></i>
-            <strong>No approvals yet.</strong>
-          </div>
-          <div class="table-wrap" *ngIf="selectedMoc.approvalHistory.length > 0">
-            <table>
+          <div style="padding: 16px 22px 20px;" *ngIf="!reworkSummaryCollapsed">
+            <table class="rework-diff-table">
               <thead>
                 <tr>
-                  <th>Gate</th>
-                  <th>Decision</th>
-                  <th>By</th>
-                  <th>Date</th>
-                  <th>Comment</th>
+                  <th class="rdf-field">Field</th>
+                  <th class="rdf-before">Before (Rejected)</th>
+                  <th class="rdf-after">After (Rework)</th>
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let approval of selectedMoc.approvalHistory">
-                  <td>{{ approval.gate }}</td>
-                  <td>{{ approval.decision }}</td>
-                  <td>{{ userName(approval.byUserId) }}</td>
-                  <td>{{ approval.at | date: 'medium' }}</td>
-                  <td>{{ approval.comments || '-' }}</td>
+                <tr *ngFor="let row of getReworkDiff(selectedMoc)" [class.rdf-changed]="row.changed">
+                  <td class="rdf-field">{{ row.field }}</td>
+                  <td class="rdf-before">{{ row.before }}</td>
+                  <td class="rdf-after">{{ row.after }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </section>
 
-        <section class="panel work-panel" *ngIf="canShowWorkflowActions(selectedMoc)">
-          <div class="section-head">
-            <div>
-              <h3>Workflow Actions</h3>
-              <p>Available actions change by role and current workflow state.</p>
-            </div>
-            <span class="status">{{ selectedMoc.workflowState }}</span>
-          </div>
-
-          <div class="workflow-actions">
-            <button type="button" class="primary" *ngIf="canSubmitForApproval(selectedMoc)" (click)="submitForApproval(selectedMoc)" [disabled]="actionLoading">
-              <i class="pi pi-spinner pi-spin" *ngIf="actionLoading" style="margin-right:6px"></i>
-              Submit for Approval to Implement
-            </button>
-            <button type="button" class="primary" *ngIf="canApproveToImplement(selectedMoc)" (click)="approveToImplement(selectedMoc)" [disabled]="actionLoading">
-              <i class="pi pi-spinner pi-spin" *ngIf="actionLoading" style="margin-right:6px"></i>
-              Approve to Implement
-            </button>
-            <button type="button" class="primary" *ngIf="canMarkImplemented(selectedMoc)" (click)="markImplemented(selectedMoc)" [disabled]="actionLoading">
-              <i class="pi pi-spinner pi-spin" *ngIf="actionLoading" style="margin-right:6px"></i>
-              Mark Implementation Complete
-            </button>
-            <button type="button" class="primary" *ngIf="canCompletePssr(selectedMoc)" (click)="completePssr(selectedMoc)" [disabled]="actionLoading">
-              <i class="pi pi-spinner pi-spin" *ngIf="actionLoading" style="margin-right:6px"></i>
-              Complete PSSR
-            </button>
-            <button type="button" class="primary" *ngIf="canApproveStartup(selectedMoc)" (click)="approveStartup(selectedMoc)" [disabled]="actionLoading">
-              <i class="pi pi-spinner pi-spin" *ngIf="actionLoading" style="margin-right:6px"></i>
-              Approve Start Up
-            </button>
-            <button type="button" class="primary" *ngIf="canProceedToReadyForClosure(selectedMoc)" (click)="proceedToReadyForClosure(selectedMoc)" [disabled]="actionLoading">
-              <i class="pi pi-spinner pi-spin" *ngIf="actionLoading" style="margin-right:6px"></i>
-              Proceed to Ready for Closure
-            </button>
-            <button type="button" class="primary" *ngIf="canClose(selectedMoc)" (click)="closeMoc(selectedMoc)" [disabled]="actionLoading"><i class="pi pi-spinner pi-spin" *ngIf="actionLoading" style="margin-right:6px"></i>Close MOC</button>
-          </div>
-
-          <div class="comment-box" *ngIf="canSendBackToEvaluation(selectedMoc)">
-            <label>
-              Send Back to Evaluation Comment <span>*</span>
-              <textarea [(ngModel)]="implementRejectionComment" rows="2" name="implementRejectComment"></textarea>
-            </label>
-            <div class="workflow-actions">
-              <button type="button" class="secondary" (click)="sendBackToEvaluation(selectedMoc)">Send Back to Evaluation</button>
-            </div>
-          </div>
-
-          <div class="comment-box" *ngIf="canCancelMoc(selectedMoc)">
-            <label>
-              Cancel MOC Comment <span>*</span>
-              <textarea [(ngModel)]="cancelComment" rows="2" name="cancelComment"></textarea>
-            </label>
-            <div class="workflow-actions">
-              <button type="button" class="secondary danger" (click)="cancelMoc(selectedMoc)">Cancel MOC</button>
-            </div>
-          </div>
-
-          <div class="comment-box" *ngIf="canSendBackToPssr(selectedMoc)">
-            <label>
-              Send Back to PSSR Comment <span>*</span>
-              <textarea [(ngModel)]="startupRejectionComment" rows="2" name="startupRejectComment"></textarea>
-            </label>
-            <div class="workflow-actions">
-              <button type="button" class="secondary" (click)="sendBackToPssr(selectedMoc)">Send Back to PSSR</button>
-            </div>
-          </div>
-        </section>
+<!-- Approval History and Workflow Actions moved to bottom of detail view -->
 
         <section class="panel work-panel" *ngIf="selectedMoc.workflowState !== 'Cancelled' && selectedMoc.evaluations.length > 0">
-          <div class="section-head">
-            <div>
-              <h3>Evaluation Progress</h3>
+          <div class="section-head sh-purple">
+            <div class="section-head-left">
+              <h3><i class="pi pi-clipboard"></i> Evaluation Progress</h3>
               <p>Discipline-by-discipline status for owner and reviewers.</p>
             </div>
-            <span class="status" [class.done]="completedEvaluationCount(selectedMoc) === selectedMoc.evaluations.length">
+            <span class="eval-prog" [ngClass]="evalProgressClass(selectedMoc)">
               {{ completedEvaluationCount(selectedMoc) }} / {{ selectedMoc.evaluations.length }} Complete
             </span>
           </div>
@@ -620,7 +1023,10 @@
               <tbody>
                 <tr *ngFor="let task of selectedMoc.evaluations">
                   <td>{{ task.discipline }}</td>
-                  <td>{{ userName(task.evaluatorId) }}</td>
+                  <td>
+                    <span class="person-label">{{ userName(task.evaluatorId) }}</span>
+                    <small class="person-title">{{ userTitle(task.evaluatorId) }}</small>
+                  </td>
                   <td>{{ checklistProgress(task) }}</td>
                   <td>{{ actionRequirementLabel(task) }}</td>
                   <td>{{ evaluationStatusLabel(selectedMoc, task) }}</td>
@@ -631,12 +1037,14 @@
         </section>
 
         <section class="panel work-panel" *ngIf="evaluatorTask(selectedMoc) as task">
-          <div class="section-head">
-            <div>
-              <h3>{{ task.discipline }} Evaluation</h3>
-              <p>Assigned to {{ userName(task.evaluatorId) }}. Complete required checklist and action logic before evaluation completion.</p>
+          <div class="section-head sh-teal">
+            <div class="section-head-left">
+              <h3><i class="pi pi-user-edit"></i> {{ task.discipline }} Evaluation</h3>
+              <p>Assigned to {{ userName(task.evaluatorId) }}. Complete all required items. Eval AIs assigned to you must be closed first.</p>
             </div>
-            <span class="status" [class.done]="task.complete">{{ task.complete ? 'Complete' : 'Pending' }}</span>
+            <span class="state-badge" [class.badge-green]="task.complete" [class.badge-amber]="!task.complete">
+              {{ task.complete ? 'Complete' : 'Pending' }}
+            </span>
           </div>
 
           <div class="checklist">
@@ -653,15 +1061,12 @@
           </div>
 
           <div class="action-required" *ngIf="canEvaluate(selectedMoc)">
-            <strong>Are evaluation action items required?</strong>
-            <label class="radio-line">
-              <input type="radio" name="actionRequired" [checked]="task.actionRequired === false" (change)="setActionRequired(task, false)" />
-              No action items required
-            </label>
-            <label class="radio-line">
-              <input type="radio" name="actionRequired" [checked]="task.actionRequired === true" (change)="setActionRequired(task, true)" />
-              Action item required
-            </label>
+            <strong>Action items (optional)</strong>
+            <p style="margin:0 0 0.4rem;font-size:0.85rem;color:#64748b">
+              Use the form below to raise Evaluation, Pre-Startup, or Post-Startup action items.
+              Evaluation items assigned to you will block your evaluation completion.
+              Items assigned to others only block the MOC from leaving Evaluation.
+            </p>
           </div>
 
           <form class="action-form nested-action-form" *ngIf="canCreateEvaluationAction(selectedMoc)" (ngSubmit)="createActionItem(selectedMoc, 'evaluation')">
@@ -687,6 +1092,14 @@
               Due Date
               <input type="date" name="dueDate" [(ngModel)]="newAction.dueDate" />
             </label>
+            <label>
+              Priority
+              <select name="priority" [(ngModel)]="newAction.priority">
+                <option value="Critical">Critical</option>
+                <option value="High">High</option>
+                <option value="Normal">Normal</option>
+              </select>
+            </label>
             <button type="submit" class="secondary">Create Action Item</button>
           </form>
 
@@ -706,12 +1119,12 @@
         </section>
 
         <section class="panel work-panel" *ngIf="selectedMoc.workflowState === 'PSSR'">
-          <div class="section-head">
-            <div>
-              <h3>PSSR Checklist</h3>
+          <div class="section-head sh-purple">
+            <div class="section-head-left">
+              <h3><i class="pi pi-list-check"></i> PSSR Checklist</h3>
               <p>Operations completes required PSSR checks before routing to Startup Approval.</p>
             </div>
-            <span class="status" [class.done]="pssrComplete(selectedMoc)">
+            <span class="state-badge" [class.badge-green]="pssrComplete(selectedMoc)" [class.badge-amber]="!pssrComplete(selectedMoc)">
               {{ pssrComplete(selectedMoc) ? 'Complete' : 'Pending' }}
             </span>
           </div>
@@ -751,16 +1164,26 @@
               Due Date
               <input type="date" name="dueDatePssr" [(ngModel)]="newAction.dueDate" />
             </label>
+            <label>
+              Priority
+              <select name="priorityPssr" [(ngModel)]="newAction.priority">
+                <option value="Critical">Critical</option>
+                <option value="High">High</option>
+                <option value="Normal">Normal</option>
+              </select>
+            </label>
             <button type="submit" class="secondary">Create Action Item</button>
           </form>
         </section>
 
+        <!-- ── Action Items ── -->
         <section class="panel work-panel">
-          <div class="section-head">
-            <div>
-              <h3>Action Items</h3>
-              <p>Tracks evaluation, pre-startup, and post-startup items with closure and evaluator review controls.</p>
+          <div class="section-head sh-amber">
+            <div class="section-head-left">
+              <h3><i class="pi pi-exclamation-circle"></i> Action Items</h3>
+              <p>Only the assigned person can complete. Pre-Startup items: completable during PSSR. Post-Startup: completable at Ready for Closure / Post-Startup Review.</p>
             </div>
+            <span class="page-count">{{ selectedMoc.actionItems.length }}</span>
           </div>
 
           <div class="table-wrap" *ngIf="selectedMoc.actionItems.length > 0">
@@ -768,47 +1191,78 @@
               <thead>
                 <tr>
                   <th>Phase</th>
+                  <th>Priority</th>
                   <th>Description</th>
                   <th>Assigned To</th>
                   <th>Due Date</th>
+                  <th>Completable At</th>
                   <th>Status</th>
-                  <th>Evaluator Review</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 <tr *ngFor="let item of selectedMoc.actionItems">
-                  <td>{{ item.phase }}</td>
+                  <td>
+                    <span class="phase-badge"
+                      [class.phase-eval]="item.phase === 'Evaluation' && !item.complete"
+                      [class.phase-pre]="item.phase === 'Pre-Startup' && !item.complete"
+                      [class.phase-post]="item.phase === 'Post-Startup' && !item.complete"
+                      [class.phase-done]="item.complete"
+                    >{{ item.phase }}</span>
+                  </td>
+                  <td>
+                    <span class="priority-badge"
+                      [class.priority-critical]="item.priority === 'Critical'"
+                      [class.priority-high]="item.priority === 'High'"
+                      [class.priority-normal]="!item.priority || item.priority === 'Normal'"
+                    >{{ item.priority || 'Normal' }}</span>
+                  </td>
                   <td>{{ item.description }}</td>
-                  <td>{{ userName(item.assigneeId) }}</td>
-                  <td>{{ item.dueDate }}</td>
-                  <td>{{ item.complete ? 'Complete' : 'Open' }}</td>
-                  <td>{{ item.reviewedByEvaluator ? 'Reviewed' : item.complete ? 'Needs evaluator review' : '-' }}</td>
+                  <td>
+                    <span class="person-label">{{ userName(item.assigneeId) }}</span>
+                    <small class="person-title">{{ userTitle(item.assigneeId) }}</small>
+                  </td>
+                  <td>
+                    <span [class.overdue-text]="!item.complete && isOverdue(item.dueDate)">
+                      {{ item.dueDate | date:'MMM d, y' }}
+                      <i class="pi pi-exclamation-triangle overdue-icon" *ngIf="!item.complete && isOverdue(item.dueDate)"></i>
+                    </span>
+                  </td>
+                  <td style="font-size:12px;color:var(--text-muted)">{{
+                    item.phase === 'Evaluation' ? 'Evaluation step only' :
+                    item.phase === 'Pre-Startup' ? 'PSSR step only' :
+                    'Ready for Closure only'
+                  }}</td>
+                  <td>
+                    <span class="pill" [class.pill-status]="!item.complete" [class.is-closed]="item.complete">
+                      {{ item.complete ? 'Complete' : 'Open' }}
+                    </span>
+                  </td>
                   <td class="action-cell">
-                    <input
-                      *ngIf="canCompleteAction(selectedMoc, item)"
-                      [(ngModel)]="actionComments[item.id]"
-                      [name]="'comment-' + item.id"
-                      placeholder="Completion comment"
-                    />
-                    <input
-                      *ngIf="canCompleteAction(selectedMoc, item)"
-                      type="file"
-                      [name]="'evidence-' + item.id"
-                      (change)="onActionEvidenceSelected($event, item)"
-                    />
-                    <button
-                      type="button"
-                      class="secondary"
-                      *ngIf="canCompleteAction(selectedMoc, item)"
-                      [disabled]="!canSubmitActionCompletion(selectedMoc, item)"
-                      (click)="completeAction(selectedMoc, item)"
-                    >
-                      Complete
-                    </button>
-                    <button type="button" class="secondary" *ngIf="canReviewAction(item)" (click)="reviewAction(selectedMoc, item)">
-                      Review Action
-                    </button>
+                    <ng-container *ngIf="canCompleteAction(selectedMoc, item)">
+                      <input
+                        [(ngModel)]="actionComments[item.id]"
+                        [name]="'comment-' + item.id"
+                        placeholder="Closure comment (required)"
+                      />
+                      <input
+                        type="file"
+                        [name]="'evidence-' + item.id"
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+                        (change)="onActionEvidenceSelected($event, item)"
+                      />
+                      <button
+                        type="button"
+                        class="secondary"
+                        [disabled]="!canSubmitActionCompletion(selectedMoc, item)"
+                        (click)="completeAction(selectedMoc, item)"
+                      >
+                        Complete
+                      </button>
+                    </ng-container>
+                    <small class="stage-note" *ngIf="!item.complete && !canCompleteAction(selectedMoc, item) && item.assigneeId === currentUser.id">
+                      {{ actionItemStageNote(item) }}
+                    </small>
                     <button type="button" class="secondary" *ngIf="item.evidenceDataUrl && item.evidenceFileName" (click)="openActionEvidence(item)">
                       View Evidence
                     </button>
@@ -822,9 +1276,178 @@
           <div class="empty-state compact" *ngIf="selectedMoc.actionItems.length === 0">
             <i class="pi pi-list" style="font-size:1.5rem;color:#94a3b8"></i>
             <strong>No action items yet.</strong>
-            <p>Evaluators can create in Evaluation, and Operations can create in PSSR.</p>
+            <p>Evaluators may raise action items during Evaluation. Operations may raise Pre/Post-Startup items during PSSR.</p>
           </div>
         </section>
+
+        <!-- ── Approval History ── -->
+        <section class="panel work-panel">
+          <div class="section-head sh-green">
+            <div class="section-head-left">
+              <h3><i class="pi pi-check-square"></i> Approval History</h3>
+              <p>All implementation and startup gate decisions recorded with date, person, and comments.</p>
+            </div>
+          </div>
+          <div class="empty-state compact" *ngIf="selectedMoc.approvalHistory.length === 0">
+            <i class="pi pi-clock" style="font-size:1.5rem;color:#94a3b8"></i>
+            <strong>No approvals yet.</strong>
+          </div>
+          <div class="table-wrap" *ngIf="selectedMoc.approvalHistory.length > 0">
+            <table>
+              <thead>
+                <tr>
+                  <th>Gate</th>
+                  <th>Decision</th>
+                  <th>By</th>
+                  <th>Designation</th>
+                  <th>Date</th>
+                  <th>Comment</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let approval of selectedMoc.approvalHistory">
+                  <td>{{ approval.gate }}</td>
+                  <td>
+                    <span class="pill"
+                      [class.pill-approved]="approval.decision === 'Approved'"
+                      [class.pill-status]="approval.decision === 'Submitted'"
+                      [style.background]="approval.decision === 'Rejected' ? '#fee2e2' : approval.decision === 'Cancelled' ? '#f1f5f9' : null"
+                    >{{ approval.decision }}</span>
+                  </td>
+                  <td>{{ userName(approval.byUserId) }}</td>
+                  <td style="color:#64748b;font-size:12px">{{ userTitle(approval.byUserId) }}</td>
+                  <td>{{ approval.at | date: 'MMM d, y, h:mm a' }}</td>
+                  <td>{{ approval.comments || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ── Workflow Actions (LAST) ── -->
+        <section class="panel work-panel workflow-actions-panel" *ngIf="canShowWorkflowActions(selectedMoc)" [class.wap-collapsed]="workflowPanelCollapsed">
+          <div class="section-head sh-amber wap-header" (click)="workflowPanelCollapsed = !workflowPanelCollapsed" style="cursor:pointer;user-select:none">
+            <div class="section-head-left">
+              <h3><i class="pi pi-send"></i> Workflow Actions</h3>
+              <p *ngIf="!workflowPanelCollapsed">Review all sections above before taking action. Available actions are determined by your role and current workflow step.</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="state-badge lg" [ngClass]="workflowStateBadgeClass(selectedMoc.workflowState)">{{ selectedMoc.workflowState }}</span>
+              <i class="pi wap-chevron" [ngClass]="workflowPanelCollapsed ? 'pi-chevron-up' : 'pi-chevron-down'"></i>
+            </div>
+          </div>
+
+          <div class="workflow-actions" *ngIf="!workflowPanelCollapsed">
+            <!-- Owner: submit for approval after evaluation -->
+            <button type="button" class="primary" *ngIf="canSubmitForApproval(selectedMoc)" (click)="submitForApproval(selectedMoc)" [disabled]="actionLoading"
+              pTooltip="All discipline evaluations and evaluation action items must be complete before submitting." tooltipPosition="top">
+              <span class="btn-spinner-ring" *ngIf="actionLoading"></span>
+              <i class="pi pi-send" *ngIf="!actionLoading"></i> Submit for Approval to Implement
+            </button>
+
+            <!-- Manager: approve or reject -->
+            <button type="button" class="primary" *ngIf="canApproveToImplement(selectedMoc)" (click)="approveToImplement(selectedMoc)" [disabled]="actionLoading"
+              pTooltip="Approve this MOC. Owner will then begin implementation." tooltipPosition="top">
+              <span class="btn-spinner-ring" *ngIf="actionLoading"></span>
+              <i class="pi pi-check" *ngIf="!actionLoading"></i> Approve to Implement
+            </button>
+
+            <!-- Owner: begin implementation (after manager approval) -->
+            <button type="button" class="primary" *ngIf="canStartImplementation(selectedMoc)" (click)="startImplementation(selectedMoc)" [disabled]="actionLoading"
+              pTooltip="Confirm that implementation work has commenced." tooltipPosition="top">
+              <span class="btn-spinner-ring" *ngIf="actionLoading"></span>
+              <i class="pi pi-play" *ngIf="!actionLoading"></i> Begin Implementation
+            </button>
+
+            <!-- Owner: mark implementation complete -->
+            <button type="button" class="primary" *ngIf="canMarkImplemented(selectedMoc)" (click)="markImplemented(selectedMoc)" [disabled]="actionLoading"
+              pTooltip="Confirm that field implementation is complete. This routes the MOC to PSSR." tooltipPosition="top">
+              <span class="btn-spinner-ring" *ngIf="actionLoading"></span>
+              <i class="pi pi-hammer" *ngIf="!actionLoading"></i> Mark Implementation Complete
+            </button>
+
+            <!-- Operations: complete PSSR (stays in PSSR, owner must advance) -->
+            <button type="button" class="primary" *ngIf="canCompletePssr(selectedMoc)" (click)="completePssr(selectedMoc)" [disabled]="actionLoading"
+              pTooltip="All required PSSR checklist items and Pre-Startup action items must be complete." tooltipPosition="top">
+              <span class="btn-spinner-ring" *ngIf="actionLoading"></span>
+              <i class="pi pi-clipboard" *ngIf="!actionLoading"></i> Submit PSSR for Review
+            </button>
+
+            <!-- Owner: advance from PSSR completed to startup approval -->
+            <button type="button" class="primary" *ngIf="canSubmitForStartupApproval(selectedMoc)" (click)="submitForStartupApproval(selectedMoc)" [disabled]="actionLoading"
+              pTooltip="PSSR has been completed by Operations. Submit for Manager startup approval." tooltipPosition="top">
+              <span class="btn-spinner-ring" *ngIf="actionLoading"></span>
+              <i class="pi pi-forward" *ngIf="!actionLoading"></i> Submit for Startup Approval
+            </button>
+
+            <!-- Manager: approve startup -->
+            <button type="button" class="primary" *ngIf="canApproveStartup(selectedMoc)" (click)="approveStartup(selectedMoc)" [disabled]="actionLoading"
+              pTooltip="Approve startup. Owner will then proceed to Ready for Closure / Post-Startup Review." tooltipPosition="top">
+              <span class="btn-spinner-ring" *ngIf="actionLoading"></span>
+              <i class="pi pi-check-circle" *ngIf="!actionLoading"></i> Approve Start Up
+            </button>
+
+            <!-- Owner: proceed to ready for closure -->
+            <button type="button" class="primary" *ngIf="canProceedToReadyForClosure(selectedMoc)" (click)="proceedToReadyForClosure(selectedMoc)" [disabled]="actionLoading"
+              pTooltip="Move this MOC to Ready for Closure / Post-Startup Review. All post-startup action items must then be completed before closing." tooltipPosition="top">
+              <span class="btn-spinner-ring" *ngIf="actionLoading"></span>
+              <i class="pi pi-arrow-right" *ngIf="!actionLoading"></i> Proceed to Ready for Closure / Post-Startup Review
+            </button>
+
+            <!-- Owner: close MOC -->
+            <button type="button" class="primary" *ngIf="canClose(selectedMoc)" (click)="closeMoc(selectedMoc)" [disabled]="actionLoading"
+              pTooltip="All post-startup action items must be complete before closing the MOC." tooltipPosition="top">
+              <span class="btn-spinner-ring" *ngIf="actionLoading"></span>
+              <i class="pi pi-lock" *ngIf="!actionLoading"></i> Close MOC
+            </button>
+          </div>
+
+          <!-- Manager reject / send back -->
+          <div class="comment-box" *ngIf="!workflowPanelCollapsed && canSendBackToEvaluation(selectedMoc)">
+            <label>
+              Send Back to Evaluation — Reason <span style="color:red">*</span>
+              <textarea [(ngModel)]="implementRejectionComment" rows="2" name="implementRejectComment" placeholder="Explain what needs to be corrected..."></textarea>
+            </label>
+            <div class="workflow-actions">
+              <button type="button" class="secondary" (click)="sendBackToEvaluation(selectedMoc)"
+                [disabled]="!implementRejectionComment.trim()"
+                pTooltip="Reject and return to Evaluation. Owner will revise and resubmit. All evaluations will be reset." tooltipPosition="top">
+                <i class="pi pi-undo"></i> Reject — Send Back to Evaluation
+              </button>
+            </div>
+          </div>
+
+          <div class="comment-box" *ngIf="!workflowPanelCollapsed && canCancelMoc(selectedMoc)">
+            <label>
+              Cancel MOC — Reason <span style="color:red">*</span>
+              <textarea [(ngModel)]="cancelComment" rows="2" name="cancelComment" placeholder="State the reason for cancellation..."></textarea>
+            </label>
+            <div class="workflow-actions">
+              <button type="button" class="secondary danger" (click)="cancelMoc(selectedMoc)"
+                [disabled]="!cancelComment.trim()"
+                pTooltip="Permanently cancel this MOC. This action cannot be undone." tooltipPosition="top">
+                <i class="pi pi-times-circle"></i> Cancel MOC
+              </button>
+            </div>
+          </div>
+
+          <div class="comment-box" *ngIf="!workflowPanelCollapsed && canSendBackToPssr(selectedMoc)">
+            <label>
+              Send Back to PSSR — Reason <span style="color:red">*</span>
+              <textarea [(ngModel)]="startupRejectionComment" rows="2" name="startupRejectComment" placeholder="Explain what needs review..."></textarea>
+            </label>
+            <div class="workflow-actions">
+              <button type="button" class="secondary" (click)="sendBackToPssr(selectedMoc)"
+                [disabled]="!startupRejectionComment.trim()"
+                pTooltip="Return this MOC to PSSR for additional review before startup approval." tooltipPosition="top">
+                <i class="pi pi-undo"></i> Reject — Send Back to PSSR
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Approval History appears above Workflow Actions -->
+
       </ng-container>
     </main>
   </div>
@@ -842,32 +1465,39 @@
   >
       <form class="form-panel modal-two-col" (ngSubmit)="submitMoc()" novalidate>
         <label>
-          Title <span>*</span>
+          <span class="field-lbl">Title <span class="req">*</span></span>
           <input name="title" [(ngModel)]="form.title" placeholder="Example: Replace gasket on Pump P-101" [class.field-invalid]="showError('title')" />
           <small class="error" *ngIf="showError('title')">Title is required.</small>
         </label>
 
         <label>
-          Date Change Needs to be Implemented By <span>*</span>
+          <span class="field-lbl">Target Implementation Date <span class="req">*</span></span>
           <input type="date" name="implementationDate" [min]="minDate" [(ngModel)]="form.implementationDate" [class.field-invalid]="showError('implementationDate')" />
           <small class="error" *ngIf="showError('implementationDate')">Implementation date is required.</small>
           <small class="error" *ngIf="submitAttempted && isPastDate()">Date cannot be in the past.</small>
         </label>
 
+        <label *ngIf="currentUser.role === 'Admin'">
+          <span class="field-lbl">MOC Owner</span>
+          <select name="formOwner" [(ngModel)]="formOwner">
+            <option *ngFor="let u of usersByRole('Owner')" [value]="u.id">{{ u.name }} — {{ u.title }}</option>
+          </select>
+        </label>
+
         <label class="wide">
-          Description <span>*</span>
-          <textarea name="description" [(ngModel)]="form.description" placeholder="Describe the proposed change" [class.field-invalid]="showError('description')" rows="2"></textarea>
+          <span class="field-lbl">Description <span class="req">*</span></span>
+          <textarea name="description" [(ngModel)]="form.description" placeholder="Describe the proposed change" [class.field-invalid]="showError('description')" rows="3"></textarea>
           <small class="error" *ngIf="showError('description')">Description is required.</small>
         </label>
 
         <label class="wide">
-          Basis / Justification <span>*</span>
-          <textarea name="basis" [(ngModel)]="form.basis" placeholder="Explain reason for the change" [class.field-invalid]="showError('basis')" rows="2"></textarea>
+          <span class="field-lbl">Basis / Justification <span class="req">*</span></span>
+          <textarea name="basis" [(ngModel)]="form.basis" placeholder="Explain reason for the change" [class.field-invalid]="showError('basis')" rows="3"></textarea>
           <small class="error" *ngIf="showError('basis')">Basis / Justification is required.</small>
         </label>
 
         <div class="field-block wide">
-          <label class="group-label">Disciplines Involved <span>*</span></label>
+          <span class="field-lbl">Disciplines Involved <span class="req">*</span></span>
           <div class="checkbox-dropdown">
             <label *ngFor="let discipline of disciplineOptions" class="checkline">
               <input
@@ -882,8 +1512,10 @@
         </div>
 
         <label class="wide">
-          Supporting Document <span>*</span>
-          <input type="file" name="supportingDocument" (change)="onFileSelected($event)" />
+          <span class="field-lbl">Supporting Document <span class="req">*</span></span>
+          <input type="file" name="supportingDocument"
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+            (change)="onFileSelected($event)" />
           <strong class="file-name" *ngIf="form.supportingDocumentName">{{ form.supportingDocumentName }}</strong>
           <small class="error" *ngIf="showError('supportingDocumentName')">Supporting document is required.</small>
         </label>
@@ -891,7 +1523,8 @@
         <footer class="form-actions">
           <button type="button" class="secondary" (click)="cancelCreate()">Cancel</button>
           <button type="submit" class="primary" [disabled]="isSubmitting">
-            <i class="pi pi-spinner pi-spin" *ngIf="isSubmitting" style="margin-right:6px"></i>{{ isSubmitting ? 'Submitting...' : 'Submit MOC' }}
+            <span class="btn-spinner-ring" *ngIf="isSubmitting"></span>
+            {{ isSubmitting ? 'Submitting…' : 'Submit MOC' }}
           </button>
         </footer>
       </form>
@@ -1033,13 +1666,20 @@
       <img *ngSwitchCase="'image'" class="doc-image" [src]="previewDocument?.dataUrl" [alt]="previewDocument?.fileName || 'Preview image'" />
       <pre *ngSwitchCase="'text'" class="doc-text">{{ previewTextContent }}</pre>
       <div *ngSwitchDefault class="preview-empty">
-        <strong>In-app preview is not available for this file type.</strong>
-        <p>Use Download to open it in your local application.</p>
+        <i class="pi pi-file" style="font-size:2.5rem;color:#94a3b8;display:block;margin-bottom:12px"></i>
+        <strong>{{ previewDocument?.fileName }}</strong>
+        <p>This file type ({{ previewDocument?.mimeType || 'unknown' }}) cannot be previewed in the browser.</p>
+        <p>Click <strong>Download</strong> below to open it in the appropriate application (e.g., Microsoft Office, Adobe Acrobat).</p>
+        <button type="button" class="btn-primary" (click)="downloadPreviewDocument()">
+          <i class="pi pi-download"></i> Download File
+        </button>
       </div>
     </div>
 
     <div class="form-actions">
-      <button pButton type="button" label="Download" icon="pi pi-download" (click)="downloadPreviewDocument()"></button>
+      <button type="button" class="btn-primary" (click)="downloadPreviewDocument()">
+        <i class="pi pi-download"></i> Download
+      </button>
     </div>
   </p-dialog>
 </ng-container>
