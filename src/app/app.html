@@ -1393,11 +1393,11 @@
                     <button type="button" class="secondary small further-ai-btn"
                       *ngIf="canRaiseFurtherAI(selectedMoc, item)"
                       (click)="openFurtherAI(item)"
-                      pTooltip="Delegate this action item — raise a further AI and close this one" tooltipPosition="top">
+                      pTooltip="Raise a Further AI on this item — a new AI will be created and linked. You still need to close this one yourself." tooltipPosition="top">
                       <i class="pi pi-share-alt"></i> Raise Further AI
                     </button>
-                    <span class="delegated-badge" *ngIf="item.closedByFurtherAI">
-                      <i class="pi pi-share-alt"></i> Delegated
+                    <span class="delegated-badge" *ngIf="item.furtherActionItemId && !item.complete">
+                      <i class="pi pi-share-alt"></i> Further AI Raised — close this item yourself
                     </span>
                     <span class="further-ai-ref" *ngIf="item.parentActionItemId">
                       <i class="pi pi-link"></i> Further AI from {{ item.parentActionItemId }}
@@ -1405,7 +1405,7 @@
                     <button type="button" class="secondary" *ngIf="item.evidenceDataUrl && item.evidenceFileName" (click)="openActionEvidence(item)">
                       View Evidence
                     </button>
-                    <span class="action-note" *ngIf="item.complete && !item.closedByFurtherAI">{{ item.comments || 'Done' }}</span>
+                    <span class="action-note" *ngIf="item.complete">{{ item.comments || 'Done' }}</span>
                   </td>
 
                   <!-- Further AI inline form row -->

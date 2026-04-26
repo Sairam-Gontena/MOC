@@ -1581,20 +1581,15 @@ export class App {
       parentActionItemId: sourceItem.id,
     };
 
-    // Close the original via delegation
-    sourceItem.complete = true;
-    sourceItem.completedByUserId = this.currentUser.id;
-    sourceItem.completedAt = new Date().toISOString();
-    sourceItem.comments = `Delegated: ${f.comment.trim()}`;
-    sourceItem.closedByFurtherAI = true;
+    // Link the original to the further AI — the original stays open for the current user to close manually
     sourceItem.furtherActionItemId = furtherItem.id;
 
     record.actionItems = [...record.actionItems, furtherItem];
     this.furtherAIForm = null;
-    this.addHistory(record, record.workflowState, `Action item delegated by ${this.currentUser.name} — further ${furtherItem.phase} AI raised and assigned to ${this.userName(furtherItem.assigneeId)}.`);
+    this.addHistory(record, record.workflowState, `Further ${furtherItem.phase} AI raised by ${this.currentUser.name} — assigned to ${this.userName(furtherItem.assigneeId)}. Original AI still open for manual closure.`);
     this.recalculateRecordState(record);
     this.saveRecords();
-    this.messageService.add({ severity: 'success', summary: 'Further Action Item Raised', detail: `Original AI closed via delegation. New ${furtherItem.phase} AI assigned to ${this.userName(furtherItem.assigneeId)}.` });
+    this.messageService.add({ severity: 'success', summary: 'Further Action Item Raised', detail: `New ${furtherItem.phase} AI assigned to ${this.userName(furtherItem.assigneeId)}. Please close the original AI yourself.` });
   }
 
   setActionRequired(task: EvaluationTask, required: boolean): void {

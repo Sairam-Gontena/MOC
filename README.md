@@ -168,14 +168,14 @@ Each action item has a **Phase** that controls when it must be closed:
 
 #### Further Action Items (Delegation)
 
-If an action item is assigned to you and you need to delegate it to another person, you can **Raise a Further AI**:
+If an action item is assigned to you and you need to raise a parallel item for another person, you can **Raise a Further AI**:
 
 1. Click **Raise Further AI** on any open action item assigned to you
 2. Choose the AI type (Evaluation / Pre-Startup / Post-Startup), assignee, priority, due date, and description
-3. Add a delegation comment explaining why you are delegating
-4. Click **Raise Further AI** — the original item closes automatically (marked as Delegated) and the new item is created and linked
+3. Add a comment explaining why you are raising the further item
+4. Click **Raise Further AI** — the new linked AI is created and assigned
 
-> Delegated closure counts the same as a normal closure for stage-gate purposes. The new further AI must be completed before the stage can advance.
+> **Important:** The original action item is **not** automatically closed. You must close it yourself, the normal way (add a closure comment and click Complete). The further AI indicator ("Further AI Raised — close this item yourself") reminds you to do so. Both the original and the further AI must be closed before the stage can advance.
 
 ---
 
