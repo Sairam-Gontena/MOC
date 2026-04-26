@@ -33,7 +33,8 @@ type WorkflowState =
   | 'Approval for Start Up'
   | 'Ready for Closure'
   | 'Closed'
-  | 'Cancelled';
+  | 'Cancelled'
+  | 'Rejected';
 type ActionPhase = 'Evaluation' | 'Pre-Startup' | 'Post-Startup';
 type GateType = 'Implement' | 'Start Up';
 type GateDecision = 'Submitted' | 'Approved' | 'Rejected' | 'Cancelled';
@@ -88,6 +89,22 @@ interface ActionItem {
   completedByUserId?: string;
   completedAt?: string;
   priority?: 'Critical' | 'High' | 'Normal';
+  /** ID of the further action item raised by the assignee — original is auto-closed when set */
+  furtherActionItemId?: string;
+  /** true if this AI was closed via delegation (Further AI raised) */
+  closedByFurtherAI?: boolean;
+  /** For a further AI, the ID of the original AI it was raised from */
+  parentActionItemId?: string;
+}
+
+interface MocRevision {
+  id: string;
+  revisionNumber: number;
+  rejectedByUserId: string;
+  rejectionReason: string;
+  rejectedAt: string;
+  revisedAt?: string;
+  fieldChanges: Array<{ field: string; label: string; oldValue: string; newValue: string }>;
 }
 
 interface WorkflowEvent {
@@ -142,6 +159,7 @@ interface MocRecord {
     implementationDate: string;
     disciplines: string[];
   };
+  revisions?: MocRevision[];
 }
 
 interface InitiationForm {
@@ -365,6 +383,18 @@ export class App {
   startupRejectionComment = '';
   cancelComment = '';
   reworkNotice = '';
+  revisionForm: InitiationForm | null = null;
+  revisionSubmitAttempted = false;
+  furtherAIForm: {
+    sourceItemId: string;
+    phase: ActionPhase;
+    assigneeId: string;
+    description: string;
+    dueDate: string;
+    priority: 'Critical' | 'High' | 'Normal';
+    comment: string;
+  } | null = null;
+  revisionsCollapsed = true;
   readNotifKeys = new Set<string>(this.loadReadNotifKeys());
   sortColumn = '';
   sortDir: 1 | -1 = 1;
@@ -410,20 +440,60 @@ export class App {
   }
 
   /** Assigned Tasks = MOCs where this user has a role assignment but is NOT the owner.
-   *  Used in the Assigned Tasks view alongside myActionItems. */
+   *  Shows full history — completed involvements stay visible so the user can track their history. */
   get assignedRecords(): MocRecord[] {
     if (!this.currentUser) return [];
     if (this.currentUser.role === 'Admin') return this.records;
     const uid = this.currentUser.id;
-    const managerActionStates: WorkflowState[] = ['Approval to Implement', 'Approval for Start Up'];
+    const managerActionStates: WorkflowState[] = ['Approval to Implement', 'Approval for Start Up', 'Rejected'];
     return this.records.filter(record =>
       record.ownerId !== uid && (
-        (record.managerId === uid && managerActionStates.includes(record.workflowState)) ||
+        // Manager: see at approval stages + any MOC they have already actioned (historical tracking)
+        (record.managerId === uid && (
+          managerActionStates.includes(record.workflowState) ||
+          record.approvalHistory.some(a => a.byUserId === uid)
+        )) ||
+        // Evaluators: see all MOCs where they are assigned (active + completed evaluations)
         record.evaluatorIds.includes(uid) ||
+        // Action item assignees: see all MOCs with their AIs (active + completed)
         record.actionItems.some(item => item.assigneeId === uid) ||
-        (this.currentUser!.discipline === 'Operations' && record.workflowState === 'PSSR')
+        // Operations: see PSSR MOCs + any MOC where they submitted PSSR (historical)
+        (this.currentUser!.discipline === 'Operations' && (
+          record.workflowState === 'PSSR' ||
+          record.pssrSubmitted === true ||
+          ['Approval for Start Up', 'Ready for Closure', 'Closed'].includes(record.workflowState)
+        ))
       )
     );
+  }
+
+  /** Returns the current user's personal involvement status on a given MOC for display in Assigned Tasks */
+  getInvolvementStatus(record: MocRecord): string {
+    if (!this.currentUser) return '';
+    const uid = this.currentUser.id;
+    const role = this.currentUser.role;
+    if (role === 'Manager') {
+      const lastApproval = [...record.approvalHistory].reverse().find(a => a.byUserId === uid);
+      if (record.workflowState === 'Approval to Implement' && record.waitingOn === 'Manager') return 'Action Required';
+      if (record.workflowState === 'Approval for Start Up' && record.waitingOn === 'Manager') return 'Action Required';
+      if (lastApproval?.decision === 'Approved') return `Approved (${lastApproval.gate})`;
+      if (lastApproval?.decision === 'Rejected') return 'Rejected';
+      return 'Pending';
+    }
+    if (role === 'Evaluator') {
+      const task = record.evaluations.find(e => e.evaluatorId === uid);
+      if (task?.complete) return 'Evaluation Complete';
+      if (record.evaluatorIds.includes(uid)) {
+        if (record.workflowState === 'Evaluation') return 'Evaluation Pending';
+        return 'Evaluation Pending';
+      }
+      // action item assignee only
+      const myItems = record.actionItems.filter(i => i.assigneeId === uid);
+      const open = myItems.filter(i => !i.complete).length;
+      if (open === 0 && myItems.length > 0) return 'Action Items Complete';
+      return `${open} Action Item${open !== 1 ? 's' : ''} Open`;
+    }
+    return record.workflowState;
   }
 
   get myActionItems(): ActionBoardRow[] {
@@ -1136,6 +1206,7 @@ export class App {
       'Ready for Closure': 'badge-cyan',
       'Closed': 'badge-gray',
       'Cancelled': 'badge-red',
+      'Rejected': 'badge-red',
     };
     return map[state] ?? 'badge-gray';
   }
@@ -1350,6 +1421,182 @@ export class App {
     );
   }
 
+  /** Owner revision: can edit when MOC is in Rejected state */
+  canReviseRejected(record: MocRecord): boolean {
+    return (
+      record.workflowState === 'Rejected' &&
+      Boolean(this.currentUser && (this.currentUser.id === record.ownerId || this.currentUser.role === 'Admin'))
+    );
+  }
+
+  openRevisionForm(record: MocRecord): void {
+    this.revisionForm = {
+      title: record.title,
+      description: record.description,
+      basis: record.basis,
+      disciplines: [...record.disciplines],
+      supportingDocumentName: record.supportingDocumentName,
+      supportingDocumentDataUrl: record.supportingDocumentDataUrl,
+      supportingDocumentMimeType: record.supportingDocumentMimeType,
+      implementationDate: record.implementationDate,
+    };
+    this.revisionSubmitAttempted = false;
+  }
+
+  closeRevisionForm(): void {
+    this.revisionForm = null;
+    this.revisionSubmitAttempted = false;
+  }
+
+  isDisciplineSelectedInRevision(discipline: string): boolean {
+    return this.revisionForm?.disciplines.includes(discipline) ?? false;
+  }
+
+  toggleDisciplineInRevision(discipline: string, checked: boolean): void {
+    if (!this.revisionForm) return;
+    if (checked) {
+      if (!this.revisionForm.disciplines.includes(discipline)) {
+        this.revisionForm.disciplines = [...this.revisionForm.disciplines, discipline];
+      }
+    } else {
+      this.revisionForm.disciplines = this.revisionForm.disciplines.filter(d => d !== discipline);
+    }
+  }
+
+  submitRevision(record: MocRecord): void {
+    if (!this.revisionForm || !this.canReviseRejected(record)) return;
+    this.revisionSubmitAttempted = true;
+    const f = this.revisionForm;
+    if (!f.title.trim() || !f.description.trim() || !f.basis.trim() || f.disciplines.length === 0 || !f.implementationDate) return;
+
+    // Compute field-by-field diff
+    const fieldChanges: MocRevision['fieldChanges'] = [];
+    const snap = record.reworkSnapshot;
+    if (snap) {
+      if (snap.title !== f.title.trim()) fieldChanges.push({ field: 'title', label: 'Title', oldValue: snap.title, newValue: f.title.trim() });
+      if (snap.description !== f.description.trim()) fieldChanges.push({ field: 'description', label: 'Description', oldValue: snap.description, newValue: f.description.trim() });
+      if (snap.basis !== f.basis.trim()) fieldChanges.push({ field: 'basis', label: 'Basis / Justification', oldValue: snap.basis, newValue: f.basis.trim() });
+      if (snap.implementationDate !== f.implementationDate) fieldChanges.push({ field: 'implementationDate', label: 'Implementation Date', oldValue: snap.implementationDate, newValue: f.implementationDate });
+      const addedDisc = f.disciplines.filter(d => !snap.disciplines.includes(d));
+      const removedDisc = snap.disciplines.filter(d => !f.disciplines.includes(d));
+      if (addedDisc.length || removedDisc.length) {
+        fieldChanges.push({ field: 'disciplines', label: 'Disciplines', oldValue: snap.disciplines.join(', '), newValue: f.disciplines.join(', ') });
+      }
+    }
+
+    // Update the latest revision entry with actual field changes and timestamp
+    if (record.revisions?.length) {
+      const latest = record.revisions[record.revisions.length - 1];
+      latest.fieldChanges = fieldChanges;
+      latest.revisedAt = new Date().toISOString();
+    }
+
+    // Apply changes to record
+    record.title = f.title.trim();
+    record.description = f.description.trim();
+    record.basis = f.basis.trim();
+    record.disciplines = [...f.disciplines];
+    record.implementationDate = f.implementationDate;
+    record.reworkSnapshot = undefined;
+
+    // Route back to Evaluation and rebuild evaluations for new discipline set
+    record.workflowState = 'Evaluation';
+    record.waitingOn = 'Evaluator';
+    record.actionFlag = 'Evaluator';
+    this.resetEvaluationTasks(record);
+    this.rebuildEvaluationsForDisciplines(record);
+    this.revisionForm = null;
+    this.revisionSubmitAttempted = false;
+    this.addHistory(record, 'Evaluation', `Owner submitted revision. ${fieldChanges.length} field(s) changed. Routed back to Evaluation.`);
+    this.recalculateRecordState(record);
+    this.saveRecords();
+    this.messageService.add({ severity: 'success', summary: 'Revision Submitted', detail: 'MOC has been updated and returned to Evaluation.' });
+  }
+
+  private rebuildEvaluationsForDisciplines(record: MocRecord): void {
+    const templates = this.checklistTemplates.evaluation;
+    // Keep existing completed evaluations for disciplines that remain
+    const existing = new Map(record.evaluations.map(e => [e.discipline, e]));
+    record.evaluatorIds = record.disciplines.map(d => this.evaluatorForDiscipline(d));
+    record.evaluations = record.disciplines.map(discipline => {
+      const ev = existing.get(discipline);
+      if (ev) { ev.complete = false; return ev; } // reset completion for existing
+      const evaluatorId = this.evaluatorForDiscipline(discipline);
+      const templateItems = templates[discipline] ?? this.templateItems(this.defaultChecklist(discipline), discipline);
+      return {
+        id: `eval-${record.id}-${discipline}-${Date.now()}`,
+        discipline,
+        evaluatorId,
+        complete: false,
+        actionRequired: null,
+        checklist: templateItems
+          .filter(t => t.active)
+          .map(t => ({ id: `cl-${Date.now()}-${Math.random().toString(36).slice(2)}`, text: t.text, required: t.required, complete: false })),
+      };
+    });
+  }
+
+  /** Further Action Item — open form to raise a child AI and delegate the original */
+  openFurtherAI(item: ActionItem): void {
+    this.furtherAIForm = {
+      sourceItemId: item.id,
+      phase: item.phase === 'Evaluation' ? 'Pre-Startup' : item.phase,
+      assigneeId: this.currentUser?.id ?? 'owner1',
+      description: '',
+      dueDate: item.dueDate,
+      priority: item.priority ?? 'Normal',
+      comment: '',
+    };
+  }
+
+  closeFurtherAIForm(): void {
+    this.furtherAIForm = null;
+  }
+
+  canRaiseFurtherAI(record: MocRecord, item: ActionItem): boolean {
+    if (!this.currentUser || item.complete || item.furtherActionItemId) return false;
+    return item.assigneeId === this.currentUser.id || this.currentUser.role === 'Admin';
+  }
+
+  submitFurtherAI(record: MocRecord): void {
+    if (!this.furtherAIForm || !this.currentUser) return;
+    const f = this.furtherAIForm;
+    if (!f.description.trim() || !f.assigneeId || !f.dueDate || !f.comment.trim()) return;
+
+    const sourceItem = record.actionItems.find(i => i.id === f.sourceItemId);
+    if (!sourceItem) return;
+
+    // Create the new further AI
+    const furtherItem: ActionItem = {
+      id: `AI${Date.now()}`,
+      phase: f.phase,
+      description: f.description.trim(),
+      assigneeId: f.assigneeId,
+      dueDate: f.dueDate,
+      priority: f.priority,
+      complete: false,
+      reviewedByEvaluator: f.phase !== 'Evaluation',
+      createdBy: this.currentUser.id,
+      sourceDiscipline: sourceItem.sourceDiscipline,
+      parentActionItemId: sourceItem.id,
+    };
+
+    // Close the original via delegation
+    sourceItem.complete = true;
+    sourceItem.completedByUserId = this.currentUser.id;
+    sourceItem.completedAt = new Date().toISOString();
+    sourceItem.comments = `Delegated: ${f.comment.trim()}`;
+    sourceItem.closedByFurtherAI = true;
+    sourceItem.furtherActionItemId = furtherItem.id;
+
+    record.actionItems = [...record.actionItems, furtherItem];
+    this.furtherAIForm = null;
+    this.addHistory(record, record.workflowState, `Action item delegated by ${this.currentUser.name} — further ${furtherItem.phase} AI raised and assigned to ${this.userName(furtherItem.assigneeId)}.`);
+    this.recalculateRecordState(record);
+    this.saveRecords();
+    this.messageService.add({ severity: 'success', summary: 'Further Action Item Raised', detail: `Original AI closed via delegation. New ${furtherItem.phase} AI assigned to ${this.userName(furtherItem.assigneeId)}.` });
+  }
+
   setActionRequired(task: EvaluationTask, required: boolean): void {
     task.actionRequired = required;
     this.touchSelectedMoc();
@@ -1561,8 +1808,8 @@ export class App {
     if (!this.canSendBackToEvaluation(record)) return;
     const comment = this.implementRejectionComment.trim();
     if (!comment) return;
-    this.confirmAction('Reject — Send Back to Evaluation', `Reject ${record.id} and return to Evaluation? All evaluations will be reset.`, () => {
-      // Snapshot the current field values before owner edits them
+    this.confirmAction('Reject — Return to Owner for Revision', `Reject ${record.id} and return to Owner for revision? All evaluations will be reset once the Owner resubmits.`, () => {
+      // Snapshot current field values so we can diff after owner edits
       record.reworkSnapshot = {
         title: record.title,
         description: record.description,
@@ -1570,13 +1817,22 @@ export class App {
         implementationDate: record.implementationDate,
         disciplines: [...record.disciplines],
       };
-      record.workflowState = 'Evaluation';
+      // Add revision entry (field changes will be filled in when owner resubmits)
+      if (!record.revisions) record.revisions = [];
+      record.revisions.push({
+        id: `REV${Date.now()}`,
+        revisionNumber: record.revisions.length + 1,
+        rejectedByUserId: this.currentUser!.id,
+        rejectionReason: comment,
+        rejectedAt: new Date().toISOString(),
+        fieldChanges: [],
+      });
+      record.workflowState = 'Rejected';
       record.waitingOn = 'Owner';
       record.actionFlag = 'Owner';
-      this.resetEvaluationTasks(record);
       this.addApproval(record, 'Implement', 'Rejected', comment);
       this.implementRejectionComment = '';
-      this.finishWorkflowUpdate(record, `Manager sent back to Evaluation. Comment: ${comment}`);
+      this.finishWorkflowUpdate(record, `Manager rejected. Returned to Owner for revision. Comment: ${comment}`);
     });
   }
 
@@ -1995,7 +2251,7 @@ export class App {
   }
 
   private isMutable(record: MocRecord): boolean {
-    return record.status === 'Open' && record.workflowState !== 'Closed' && record.workflowState !== 'Cancelled';
+    return record.status === 'Open' && record.workflowState !== 'Closed' && record.workflowState !== 'Cancelled' && record.workflowState !== 'Rejected';
   }
 
   private evaluatorForDiscipline(discipline: string): string {
@@ -2051,6 +2307,12 @@ export class App {
     if (record.status !== 'Open') {
       record.waitingOn = '-';
       record.actionFlag = 'Complete';
+      return;
+    }
+
+    if (record.workflowState === 'Rejected') {
+      record.waitingOn = 'Owner';
+      record.actionFlag = 'Owner';
       return;
     }
 
@@ -2360,6 +2622,8 @@ export class App {
       }
       return 1;
     }
+    // 'Rejected' maps to Initiated position (step 0) — owner must revise before going back to Evaluation
+    if (record.workflowState === 'Rejected') return 0;
     const idx = this.workflowSteps.findIndex((entry) => entry.key === record.workflowState);
     return idx >= 0 ? idx : 1;
   }
@@ -2851,6 +3115,34 @@ export class App {
         waitingOn: 'Evaluator',
         workflowHistory: [this.seedHistory(now, 'Initiated', 'owner2', ['env1', 'process1'], 'MOC initiated. Environmental and Process evaluations requested per permit compliance timeline.')],
         actionFlag: 'Evaluator',
+        createdDate: now,
+        lastUpdatedDate: now,
+      },
+      // 9 — Evaluation complete, ready to submit (Olivia, Mechanical + Process)
+      {
+        id: 'MOC-2026-009',
+        title: 'Replace Corroded Overhead Fin-Fan Cooler Bundles — Air Cooler AC-101',
+        description: 'Fin-fan cooler AC-101 has experienced accelerated corrosion on tube bundles due to elevated chloride content in cooling air. Replacement with alloy-upgraded bundles is required to restore design heat transfer capacity.',
+        basis: 'Thickness inspection TI-2026-031 found average tube wall at 35% of nominal. Engineering recommends immediate bundle replacement before summer peak load season.',
+        disciplines: ['Mechanical', 'Process'],
+        supportingDocumentName: 'AC101_Bundle_Replacement_Engineering_Basis.pdf',
+        implementationDate: d(30),
+        ownerId: 'owner1',
+        evaluatorIds: ['mech1', 'process1'],
+        managerId: 'manager1',
+        evaluations: [this.seedEvaluation('Mechanical', 'mech1', true), this.seedEvaluation('Process', 'process1', true)],
+        pssrChecklist: this.makePssrChecklist(false),
+        actionItems: [],
+        approvalHistory: [],
+        workflowState: 'Evaluation',
+        status: 'Open',
+        waitingOn: 'Owner',
+        workflowHistory: [
+          this.seedHistory(now, 'Initiated', 'owner1', ['mech1', 'process1'], 'MOC initiated. Mechanical and Process evaluations requested.'),
+          this.seedHistory(now, 'Evaluation', 'mech1', ['owner1'], 'Mechanical evaluation complete.'),
+          this.seedHistory(now, 'Evaluation', 'process1', ['owner1'], 'Process evaluation complete. All disciplines done — ready for Owner to submit.'),
+        ],
+        actionFlag: 'Owner',
         createdDate: now,
         lastUpdatedDate: now,
       },

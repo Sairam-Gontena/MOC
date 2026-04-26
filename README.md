@@ -53,7 +53,7 @@ The login screen has two modes. Use **Persona Login** to sign in instantly by cl
 
 Sign in as **Ada (Admin)**. Admin sees every MOC in the system across all users, with a Demo Reset button to restore seed data at any time.
 
-**Admin dashboard — all 8 MOCs across the system**
+**Admin dashboard — all MOCs across the system**
 ![Admin Dashboard](ui-screenshots/03-admin-all-mocs-dashboard.png)
 
 **MOC table — MOC ID, title, target date, workflow step, disciplines, eval progress**
@@ -154,16 +154,39 @@ Scroll down to the Mechanical Evaluation section.
 >
 > Once all assigned disciplines complete their evaluations, the Owner can submit for Manager approval.
 
+#### Action Item Types
+
+Each action item has a **Phase** that controls when it must be closed:
+
+| Phase | Who Can Raise It | Must Be Closed Before |
+|---|---|---|
+| **Evaluation** | Any Evaluator during Evaluation stage | Owner submits for Approval to Implement |
+| **Pre-Startup** | Evaluators during Evaluation; Operations during PSSR | Owner submits PSSR for Review |
+| **Post-Startup** | Evaluators during Evaluation; Operations during PSSR | Owner closes the MOC |
+
+> The phase dropdown in the action item form automatically limits available options based on the current workflow stage.
+
+#### Further Action Items (Delegation)
+
+If an action item is assigned to you and you need to delegate it to another person, you can **Raise a Further AI**:
+
+1. Click **Raise Further AI** on any open action item assigned to you
+2. Choose the AI type (Evaluation / Pre-Startup / Post-Startup), assignee, priority, due date, and description
+3. Add a delegation comment explaining why you are delegating
+4. Click **Raise Further AI** — the original item closes automatically (marked as Delegated) and the new item is created and linked
+
+> Delegated closure counts the same as a normal closure for stage-gate purposes. The new further AI must be completed before the stage can advance.
+
 ---
 
 ### Step 6 — Owner: Submit for Approval to Implement
 
-Once all evaluations are complete, the Owner submits the MOC for Manager approval. The workflow step changes to **Approval to Implement**.
+Once all evaluations are complete, the Owner sees the **Submit for Approval to Implement** button in the Workflow Actions panel at the bottom of the MOC detail.
 
-**MOC at Approval to Implement state — workflow map shows step 3 active**
+**MOC with all evaluations complete — evaluation progress shows 2/2**
 ![Owner Approval to Implement State](ui-screenshots/18-owner-moc-approval-to-implement-state.png)
 
-**Workflow Actions panel — Submit for Approval to Implement button**
+**Workflow Actions panel — Submit for Approval to Implement button clearly visible**
 ![Owner Submit for Approval](ui-screenshots/19-owner-submit-for-approval-btn.png)
 
 > The Workflow Actions panel is sticky at the bottom of the detail page. Click the amber header bar to collapse it while reading the MOC, and click again to expand it when ready to act.
@@ -179,10 +202,10 @@ Sign in as **Morgan (Manager)**. The dashboard shows Morgan's own MOCs.
 
 Click **Assigned Tasks** in the sidebar to see the approval queue.
 
-**Manager Assigned Tasks — only MOCs at approval stages (Approval to Implement or Approval for Start Up)**
+**Manager Assigned Tasks — MOCs at approval stages with YOUR STATUS column**
 ![Manager Assigned Tasks](ui-screenshots/21-manager-assigned-tasks-approval-queue.png)
 
-> Managers only see MOCs when their action is actually required. MOCs in Evaluation, Implementation, or PSSR do not appear here.
+> Managers only see "Action Required" for MOCs awaiting their decision. After approving, the MOC continues to appear in their Assigned Tasks with the approval decision recorded (e.g., "Approved (Implement)"), so they can track the full lifecycle of every MOC they touched.
 
 Click any MOC to review the full detail before making a decision.
 
@@ -191,12 +214,31 @@ Click any MOC to review the full detail before making a decision.
 
 Scroll to the bottom and expand the Workflow Actions panel.
 
-**Manager Workflow Actions — Approve to Implement and Reject (Send Back to Evaluation)**
+**Manager Workflow Actions — Approve to Implement and Reject (Return to Owner)**
 ![Manager Workflow Actions](ui-screenshots/23-manager-workflow-actions-approve-reject.png)
 
 > **If Approved:** MOC moves to Implementation. Owner is notified.
 >
-> **If Rejected:** Manager must enter a reason. All evaluations are reset and the MOC returns to Evaluation. The rejection reason and rework history are permanently recorded.
+> **If Rejected:** Manager must enter a reason. The MOC goes to **Rejected** state and routes back to the Owner. The Owner must revise the initiation fields and resubmit — all evaluations are reset and must be completed again. The rejection reason and every field change are permanently recorded in Revision History.
+
+---
+
+### Step 7a — Rejection Flow: Owner Revises and Resubmits
+
+When a Manager rejects a MOC, the workflow map shows the MOC back at the **Initiated** step with a **Rejected** status badge. The Owner receives a notification and must take action.
+
+In the MOC detail:
+1. A red **Rejection Reason** box appears showing the Manager's name, date, and rejection comment
+2. The Owner clicks **Revise MOC Details** to open an edit form
+3. The Owner updates any of the initiation fields (title, description, basis, disciplines, target date, document)
+4. The Owner clicks **Submit Revised MOC** — the MOC returns to **Evaluation** with all disciplines reset
+
+**Revision History** is permanently visible on the MOC, showing:
+- Which revision this is (Revision 1, 2, etc.)
+- Who rejected it and why
+- A field-by-field diff of every change the Owner made (old value → new value)
+
+> All previous revision history is preserved. If a MOC is rejected and revised multiple times, the complete rework audit trail is visible to all participants.
 
 ---
 
@@ -204,15 +246,13 @@ Scroll to the bottom and expand the Workflow Actions panel.
 
 After Manager approval, the Owner drives the implementation phase.
 
-**MOC in Implementation — Owner begins and marks implementation complete**
+**MOC in Implementation — Approval History shows Manager approved**
 ![Owner Implementation](ui-screenshots/24-owner-moc-in-implementation.png)
 
-**Workflow Actions — Begin Implementation → Mark Implementation Complete**
+**Workflow Actions — Mark Implementation Complete button**
 ![Owner Implementation Actions](ui-screenshots/25-owner-implementation-workflow-actions.png)
 
-> Two actions in sequence:
-> 1. **Begin Implementation** — confirms work has started in the field
-> 2. **Mark Implementation Complete** — confirms all physical/procedural changes are done; routes to PSSR
+> Click **Mark Implementation Complete** to confirm all physical/procedural changes are done and route the MOC to PSSR.
 
 ---
 
@@ -233,10 +273,13 @@ Click the PSSR MOC to open it.
 
 > Oscar must:
 > 1. Complete the PSSR checklist (all required items)
-> 2. Close any Pre-Startup action items assigned to him
-> 3. Click **Submit PSSR for Review**
+> 2. Raise any Pre-Startup or Post-Startup action items as needed
+> 3. Close any Pre-Startup action items assigned to him
+> 4. Click **Submit PSSR for Review**
 >
 > The Owner then reviews and submits for Manager startup approval.
+>
+> **Note:** Operations can raise both Pre-Startup and Post-Startup action items during the PSSR stage. Pre-Startup items must be closed before PSSR submission; Post-Startup items carry forward to Ready for Closure.
 
 ---
 
@@ -298,17 +341,50 @@ As Admin (Ada), open any closed MOC to see the complete permanent record.
 
 ---
 
+### Step 14 — Assigned Tasks: Your Status & Full History
+
+The **Assigned Tasks** view shows every MOC a user has been involved in — not just active ones. This gives a complete personal history of all involvement.
+
+**Evaluator Assigned Tasks — all past and present MOCs with Your Status column**
+![Evaluator Assigned Tasks Your Status](ui-screenshots/37-evaluator-assigned-tasks-your-status.png)
+
+**Manager Assigned Tasks — full lifecycle tracking with approval decision badges**
+![Manager Assigned Tasks Your Status](ui-screenshots/38-manager-assigned-tasks-your-status.png)
+
+> The **YOUR STATUS** column shows each person's current involvement status:
+>
+> | Status | Who Sees It | Meaning |
+> |---|---|---|
+> | **Action Required** (amber) | Manager | Awaiting your approval decision |
+> | **Evaluation Pending** (blue) | Evaluator | You have not yet completed your evaluation |
+> | **Evaluation Complete** (green) | Evaluator | Your evaluation is done |
+> | **Approved (Implement)** (green) | Manager | You approved this MOC to implement |
+> | **Approved (Start Up)** (green) | Manager | You approved startup for this MOC |
+> | **Rejected** (red) | Manager | You rejected this MOC (now with Owner for revision) |
+> | **Action Items Open** (blue) | Any user with AIs | You have open action items on this MOC |
+> | **Action Items Complete** (green) | Any user with AIs | All your action items are closed |
+
+---
+
 ## 8-Step Workflow Summary
 
 ```
  1. Initiated          Owner creates MOC → auto-routes to Evaluation
  2. Evaluation         Each discipline evaluator completes checklist + action items
- 3. Approval to Impl.  Manager approves (→ Impl.) or rejects (→ back to Evaluation)
- 4. Implementation     Owner begins → marks implementation complete
+ 3. Approval to Impl.  Manager approves (→ Impl.) or rejects (→ back to Owner / Rejected state)
+ 4. Implementation     Owner marks implementation complete
  5. PSSR               Operations evaluator completes checklist + pre-startup items
  6. Approval for S/U   Manager approves (→ Closure) or rejects (→ back to PSSR)
  7. Ready for Closure  Owner completes all post-startup action items
  8. Closed             Owner closes — full audit trail locked
+```
+
+### Rejection Flow (additional)
+
+```
+ Rejected state:       Manager rejects → MOC status = Rejected, routed to Owner
+ Owner Revision:       Owner edits initiation fields, submits revised MOC
+ Back to Evaluation:   All evaluations reset, MOC re-enters Evaluation with Revision History logged
 ```
 
 ---
@@ -318,7 +394,7 @@ As Admin (Ada), open any closed MOC to see the complete permanent record.
 | What they see | Owner | Evaluator | Manager | Admin |
 |---|:---:|:---:|:---:|:---:|
 | My MOCs dashboard | Own MOCs | Own MOCs | Own MOCs | All MOCs |
-| Assigned Tasks | — | MOCs where assigned as evaluator | MOCs at approval gates only | All MOCs |
+| Assigned Tasks | — | MOCs where assigned as evaluator + full history | MOCs at approval gates + full history after first approval | All MOCs |
 | Create MOC | ✓ | ✓ | ✓ | ✓ (with owner selector) |
 | Checklist Admin | — | — | — | ✓ |
 | Demo Reset | — | — | — | ✓ |
@@ -339,9 +415,9 @@ As Admin (Ada), open any closed MOC to see the complete permanent record.
 ## Project Files
 
 ```
-src/app/app.ts       All logic (~2800 lines)
-src/app/app.html     All views (~1650 lines)
-src/app/app.css      All styles (~2100 lines)
+src/app/app.ts       All logic (~3000 lines)
+src/app/app.html     All views (~1800 lines)
+src/app/app.css      All styles (~2400 lines)
 serve-dist.js        Static file server for the production build
 ui-screenshots/      All demo screenshots (auto-generated)
 take-screenshots.js  Playwright script to regenerate screenshots

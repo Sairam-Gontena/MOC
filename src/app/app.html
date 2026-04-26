@@ -429,7 +429,7 @@
                   <th>TARGET DATE</th>
                   <th>WORKFLOW STEP</th>
                   <th>YOUR ROLE</th>
-                  <th>STATUS</th>
+                  <th>YOUR STATUS</th>
                 </tr>
               </thead>
               <tbody>
@@ -445,12 +445,16 @@
                   <td>
                     <span class="disc-chip" *ngIf="record.managerId === currentUser?.id">Manager</span>
                     <span class="disc-chip" *ngIf="record.evaluatorIds.includes(currentUser?.id!)">Evaluator</span>
-                    <span class="disc-chip" *ngIf="currentUser?.discipline === 'Operations' && record.workflowState === 'PSSR'">PSSR</span>
+                    <span class="disc-chip" *ngIf="currentUser?.discipline === 'Operations' && (record.workflowState === 'PSSR' || record.pssrSubmitted)">PSSR</span>
                     <span class="disc-chip" *ngIf="record.actionItems.some(ai => ai.assigneeId === currentUser?.id)">Action Item</span>
                   </td>
                   <td>
-                    <span class="pill" [class.is-closed]="record.status === 'Closed'" [class.pill-status]="record.status === 'Open'">
-                      {{ record.status }}
+                    <span class="involvement-status-badge"
+                      [class.inv-action-required]="getInvolvementStatus(record) === 'Action Required'"
+                      [class.inv-complete]="getInvolvementStatus(record).includes('Complete') || getInvolvementStatus(record).startsWith('Approved')"
+                      [class.inv-rejected]="getInvolvementStatus(record) === 'Rejected'"
+                      [class.inv-pending]="getInvolvementStatus(record) === 'Pending' || getInvolvementStatus(record).includes('Pending') || getInvolvementStatus(record).includes('Open')">
+                      {{ getInvolvementStatus(record) }}
                     </span>
                   </td>
                 </tr>
@@ -996,6 +1000,128 @@
           </div>
         </section>
 
+        <!-- ── Rejected: Owner Revision Panel ── -->
+        <section class="panel work-panel revision-panel" *ngIf="canReviseRejected(selectedMoc)">
+          <div class="section-head sh-red">
+            <div class="section-head-left">
+              <h3><i class="pi pi-times-circle"></i> MOC Rejected — Revision Required</h3>
+              <p>The Manager has rejected this MOC and returned it to you for revision. Review the rejection reason below, update the relevant fields, and resubmit for evaluation.</p>
+            </div>
+            <span class="state-badge lg badge-red">Rejected</span>
+          </div>
+
+          <!-- Rejection reason -->
+          <ng-container *ngIf="selectedMoc.revisions?.length">
+            <div class="rejection-reason-box">
+              <div class="rej-meta">
+                <i class="pi pi-comment"></i>
+                <span><strong>Rejection Reason</strong> — {{ userName(selectedMoc.revisions![selectedMoc.revisions!.length-1].rejectedByUserId) }},
+                  {{ selectedMoc.revisions![selectedMoc.revisions!.length-1].rejectedAt | date:'MMM d, y h:mm a' }}</span>
+              </div>
+              <p class="rej-comment">{{ selectedMoc.revisions![selectedMoc.revisions!.length-1].rejectionReason }}</p>
+            </div>
+          </ng-container>
+
+          <!-- Open revision form button when form is not yet open -->
+          <div class="revision-cta" *ngIf="!revisionForm">
+            <button type="button" class="btn-primary" (click)="openRevisionForm(selectedMoc)">
+              <i class="pi pi-pencil"></i> Revise MOC Details
+            </button>
+          </div>
+
+          <!-- Inline revision edit form -->
+          <div class="revision-form-wrap" *ngIf="revisionForm">
+            <div class="rev-form-header">
+              <h4><i class="pi pi-pencil"></i> Edit MOC Fields</h4>
+              <button type="button" class="secondary small" (click)="closeRevisionForm()">Cancel</button>
+            </div>
+            <div class="rework-grid">
+              <div class="rework-field">
+                <label class="rework-label">Title <span class="req">*</span></label>
+                <input [(ngModel)]="revisionForm.title" name="revTitle" class="rework-input" placeholder="MOC Title" />
+                <small class="error" *ngIf="revisionSubmitAttempted && !revisionForm.title.trim()">Required</small>
+              </div>
+              <div class="rework-field wide">
+                <label class="rework-label">Description <span class="req">*</span></label>
+                <textarea [(ngModel)]="revisionForm.description" rows="3" name="revDesc" class="rework-input" placeholder="Describe the proposed change"></textarea>
+                <small class="error" *ngIf="revisionSubmitAttempted && !revisionForm.description.trim()">Required</small>
+              </div>
+              <div class="rework-field wide">
+                <label class="rework-label">Basis / Justification <span class="req">*</span></label>
+                <textarea [(ngModel)]="revisionForm.basis" rows="3" name="revBasis" class="rework-input" placeholder="Explain reason for the change"></textarea>
+                <small class="error" *ngIf="revisionSubmitAttempted && !revisionForm.basis.trim()">Required</small>
+              </div>
+              <div class="rework-field">
+                <label class="rework-label">Target Implementation Date <span class="req">*</span></label>
+                <input type="date" [(ngModel)]="revisionForm.implementationDate" name="revDate" class="rework-input" />
+                <small class="error" *ngIf="revisionSubmitAttempted && !revisionForm.implementationDate">Required</small>
+              </div>
+              <div class="rework-field">
+                <label class="rework-label">Replace Supporting Document</label>
+                <input type="file" name="revFile" class="rework-input"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+                  (change)="onReworkFileSelected($event, selectedMoc)" />
+              </div>
+              <div class="rework-field wide">
+                <label class="rework-label">Disciplines Involved <span class="req">*</span></label>
+                <div class="checkbox-dropdown">
+                  <label *ngFor="let discipline of disciplineOptions" class="checkline">
+                    <input type="checkbox"
+                      [checked]="isDisciplineSelectedInRevision(discipline)"
+                      (change)="toggleDisciplineInRevision(discipline, $any($event.target).checked)" />
+                    {{ discipline }}
+                  </label>
+                </div>
+                <small class="error" *ngIf="revisionSubmitAttempted && revisionForm.disciplines.length === 0">At least one discipline required</small>
+              </div>
+            </div>
+            <div class="rework-actions">
+              <button type="button" class="secondary" (click)="closeRevisionForm()">Cancel</button>
+              <button type="button" class="btn-primary" (click)="submitRevision(selectedMoc)">
+                <i class="pi pi-send"></i> Submit Revised MOC for Evaluation
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── Revision History — visible to everyone ── -->
+        <section class="panel work-panel" *ngIf="selectedMoc.revisions && selectedMoc.revisions.length > 0">
+          <div class="section-head sh-red" style="cursor:pointer" (click)="revisionsCollapsed = !revisionsCollapsed">
+            <div class="section-head-left">
+              <h3><i class="pi pi-history"></i> Revision History <span class="page-count">{{ selectedMoc.revisions.length }}</span></h3>
+              <p>Each Manager rejection and the Owner's subsequent revisions are recorded here.</p>
+            </div>
+            <i class="pi" [ngClass]="revisionsCollapsed ? 'pi-chevron-down' : 'pi-chevron-up'" style="color:var(--text-muted);font-size:14px"></i>
+          </div>
+          <div *ngIf="!revisionsCollapsed">
+            <div class="revision-entry" *ngFor="let rev of selectedMoc.revisions">
+              <div class="rev-entry-head">
+                <span class="rev-num">Revision {{ rev.revisionNumber }}</span>
+                <span class="rev-meta">Rejected by {{ userName(rev.rejectedByUserId) }} on {{ rev.rejectedAt | date:'MMM d, y h:mm a' }}</span>
+                <span class="rev-meta" *ngIf="rev.revisedAt"> · Owner revised {{ rev.revisedAt | date:'MMM d, y h:mm a' }}</span>
+              </div>
+              <div class="rev-reason">
+                <i class="pi pi-comment"></i> <strong>Rejection Reason:</strong> {{ rev.rejectionReason }}
+              </div>
+              <div class="rev-changes" *ngIf="rev.fieldChanges.length > 0">
+                <div class="rev-changes-label">Fields Changed by Owner:</div>
+                <div class="rev-change-row" *ngFor="let fc of rev.fieldChanges">
+                  <span class="rev-change-field">{{ fc.label }}</span>
+                  <span class="rev-change-old">{{ fc.oldValue }}</span>
+                  <i class="pi pi-arrow-right" style="font-size:11px;color:var(--text-muted)"></i>
+                  <span class="rev-change-new">{{ fc.newValue }}</span>
+                </div>
+              </div>
+              <div class="rev-no-changes" *ngIf="rev.fieldChanges.length === 0 && rev.revisedAt">
+                <i class="pi pi-info-circle"></i> No field changes recorded for this revision.
+              </div>
+              <div class="rev-pending" *ngIf="!rev.revisedAt">
+                <i class="pi pi-clock"></i> Owner revision pending.
+              </div>
+            </div>
+          </div>
+        </section>
+
 <!-- Approval History and Workflow Actions moved to bottom of detail view -->
 
         <section class="panel work-panel" *ngIf="selectedMoc.workflowState !== 'Cancelled' && selectedMoc.evaluations.length > 0">
@@ -1263,11 +1389,83 @@
                     <small class="stage-note" *ngIf="!item.complete && !canCompleteAction(selectedMoc, item) && item.assigneeId === currentUser.id">
                       {{ actionItemStageNote(item) }}
                     </small>
+                    <!-- Further Action Item button -->
+                    <button type="button" class="secondary small further-ai-btn"
+                      *ngIf="canRaiseFurtherAI(selectedMoc, item)"
+                      (click)="openFurtherAI(item)"
+                      pTooltip="Delegate this action item — raise a further AI and close this one" tooltipPosition="top">
+                      <i class="pi pi-share-alt"></i> Raise Further AI
+                    </button>
+                    <span class="delegated-badge" *ngIf="item.closedByFurtherAI">
+                      <i class="pi pi-share-alt"></i> Delegated
+                    </span>
+                    <span class="further-ai-ref" *ngIf="item.parentActionItemId">
+                      <i class="pi pi-link"></i> Further AI from {{ item.parentActionItemId }}
+                    </span>
                     <button type="button" class="secondary" *ngIf="item.evidenceDataUrl && item.evidenceFileName" (click)="openActionEvidence(item)">
                       View Evidence
                     </button>
-                    <span class="action-note" *ngIf="item.complete">{{ item.comments || 'Done' }}</span>
+                    <span class="action-note" *ngIf="item.complete && !item.closedByFurtherAI">{{ item.comments || 'Done' }}</span>
                   </td>
+
+                  <!-- Further AI inline form row -->
+                  <ng-container *ngIf="furtherAIForm && furtherAIForm.sourceItemId === item.id">
+                    <tr class="further-ai-row">
+                      <td colspan="8">
+                        <div class="further-ai-form">
+                          <div class="further-ai-form-head">
+                            <i class="pi pi-share-alt"></i> Raise Further Action Item
+                            <small>Original AI will be closed via delegation when you submit.</small>
+                            <button type="button" class="secondary small" (click)="closeFurtherAIForm()">✕ Cancel</button>
+                          </div>
+                          <div class="further-ai-fields">
+                            <label>
+                              <span class="field-lbl">AI Type <span class="req">*</span></span>
+                              <select [(ngModel)]="furtherAIForm.phase" name="furtherPhase">
+                                <option value="Evaluation">Evaluation AI (close in Evaluation)</option>
+                                <option value="Pre-Startup">Pre-Startup AI (close in PSSR)</option>
+                                <option value="Post-Startup">Post-Startup AI (close in Ready for Closure)</option>
+                              </select>
+                            </label>
+                            <label>
+                              <span class="field-lbl">Assign To <span class="req">*</span></span>
+                              <select [(ngModel)]="furtherAIForm.assigneeId" name="furtherAssignee">
+                                <option *ngFor="let u of users" [value]="u.id">{{ u.name }} — {{ u.title ?? u.role }}</option>
+                              </select>
+                            </label>
+                            <label>
+                              <span class="field-lbl">Priority</span>
+                              <select [(ngModel)]="furtherAIForm.priority" name="furtherPriority">
+                                <option value="Critical">Critical</option>
+                                <option value="High">High</option>
+                                <option value="Normal">Normal</option>
+                              </select>
+                            </label>
+                            <label>
+                              <span class="field-lbl">Due Date <span class="req">*</span></span>
+                              <input type="date" [(ngModel)]="furtherAIForm.dueDate" name="furtherDue" />
+                            </label>
+                            <label class="wide">
+                              <span class="field-lbl">Description <span class="req">*</span></span>
+                              <input [(ngModel)]="furtherAIForm.description" name="furtherDesc" placeholder="Describe the further action required" />
+                            </label>
+                            <label class="wide">
+                              <span class="field-lbl">Delegation Comment <span class="req">*</span></span>
+                              <input [(ngModel)]="furtherAIForm.comment" name="furtherComment" placeholder="Explain why you are delegating / raising this further AI" />
+                            </label>
+                          </div>
+                          <div class="further-ai-form-actions">
+                            <button type="button" class="secondary" (click)="closeFurtherAIForm()">Cancel</button>
+                            <button type="button" class="btn-primary"
+                              [disabled]="!furtherAIForm.description.trim() || !furtherAIForm.comment.trim() || !furtherAIForm.dueDate"
+                              (click)="submitFurtherAI(selectedMoc)">
+                              <i class="pi pi-check"></i> Submit Further AI &amp; Close Original
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </ng-container>
                 </tr>
               </tbody>
             </table>
@@ -1402,17 +1600,17 @@
             </button>
           </div>
 
-          <!-- Manager reject / send back -->
+          <!-- Manager reject / return to owner -->
           <div class="comment-box" *ngIf="!workflowPanelCollapsed && canSendBackToEvaluation(selectedMoc)">
             <label>
-              Send Back to Evaluation — Reason <span style="color:red">*</span>
-              <textarea [(ngModel)]="implementRejectionComment" rows="2" name="implementRejectComment" placeholder="Explain what needs to be corrected..."></textarea>
+              Return to Owner for Revision — Reason <span style="color:red">*</span>
+              <textarea [(ngModel)]="implementRejectionComment" rows="2" name="implementRejectComment" placeholder="Explain what the Owner needs to revise before re-evaluation..."></textarea>
             </label>
             <div class="workflow-actions">
               <button type="button" class="secondary" (click)="sendBackToEvaluation(selectedMoc)"
                 [disabled]="!implementRejectionComment.trim()"
-                pTooltip="Reject and return to Evaluation. Owner will revise and resubmit. All evaluations will be reset." tooltipPosition="top">
-                <i class="pi pi-undo"></i> Reject — Send Back to Evaluation
+                pTooltip="Reject and return to Owner. Owner revises initiation fields and resubmits to Evaluation." tooltipPosition="top">
+                <i class="pi pi-undo"></i> Reject — Return to Owner for Revision
               </button>
             </div>
           </div>
